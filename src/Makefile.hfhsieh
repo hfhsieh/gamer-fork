@@ -89,7 +89,7 @@ SIMU_OPTION += -DEOS=IDEAL_GAS
 #SIMU_OPTION += -DNEUTRINO_SCHEME=LIGHTBULB
 
 # magnetohydrodynamics
-SIMU_OPTION += -DMHD
+#SIMU_OPTION += -DMHD
 
 
 # (b-3) ELBDM options
