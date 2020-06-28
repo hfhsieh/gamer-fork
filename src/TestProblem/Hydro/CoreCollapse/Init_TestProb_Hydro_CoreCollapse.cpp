@@ -24,7 +24,7 @@ static int    Progenitor_NBin ;        // number of radial bins in the progenito
 static bool Flag_CoreCollapse(const int i, const int j, const int k, const int lv, const int PID, const double *Threshold);
  static void Record_CentralDensity();
 static double Mis_InterpolateFromTable_Ext( Profile_t *Phi, const double r );
-static void Record_GWSignal_Full2nd(); 
+static void Record_GWSignal_Full2nd();
 
 
 extern Profile_t *Phi_eff[2];
@@ -133,7 +133,7 @@ void SetParameter()
 #  ifdef MHD
    ReadPara->Add( "Bfield_Ab",         &Bfield_Ab,             1.0e15,        0.0,              NoMax_double      );
    ReadPara->Add( "Bfield_np",         &Bfield_np,             0.0,           NoMin_double,     NoMax_double      );
-#  endif 
+#  endif
    ReadPara->Add( "GW_OUTPUT_OPT",       &GW_OUTPUT_OPT,         1,             0,                NoMax_int         );
    ReadPara->Add( "GW_OUTPUT_DT",        &GW_OUTPUT_DT,          0.0,           0.0,              NoMax_double      );
    //ReadPara->Add( "bounce",            &bounce,                false,         Useless_bool,     Useless_bool      );
@@ -214,7 +214,7 @@ void SetParameter()
       //Aux_Message( stdout, "  var_int                   = %d\n",     var_int );
       Aux_Message( stdout, "  progenitor_file           = %s\n",     progenitor_file );
       Aux_Message( stdout, "  rot_omega                 = %13.7e\n",  rot_omega );
-      Aux_Message( stdout, "  rot_A                     = %13.7e\n",  rot_A ); 
+      Aux_Message( stdout, "  rot_A                     = %13.7e\n",  rot_A );
 #     ifdef MHD
       Aux_Message( stdout, "  Bfield_Ab                 = %13.7e\n",  Bfield_Ab );
       Aux_Message( stdout, "  Bfield_np                 = %13.7e\n",  Bfield_np );
@@ -446,7 +446,7 @@ void Record_CoreCollapse()
 
    // output data if dt > GW_OUTPUT_DT
    if ( dTime_Base >= GW_OUTPUT_DT )  OutputData = true;
-   
+
 
    if ( OutputData )
    {
@@ -459,7 +459,7 @@ void Record_CoreCollapse()
 
 //-------------------------------------------------------------------------------------------------------
 //
-//  (1) Check Core Bounce and 
+//  (1) Check Core Bounce and
 //  (2) Record the maximun density in the simulation box
 //
 //-------------------------------------------------------------------------------------------------------
@@ -650,7 +650,7 @@ void Record_CentralDensity()
 // Function    :  Record_GWSignal_Full2nd
 // Description :  Record the second-order derivative of mass quadrupole moments
 //                tentative experiment
-// Credict     :  He-Feng Hsieh   
+// Credict     :  He-Feng Hsieh
 //-------------------------------------------------------------------------------------------------------
 void Record_GWSignal_Full2nd()
 {
@@ -1028,6 +1028,7 @@ bool Flag_CoreCollapse( const int i, const int j, const int k, const int lv, con
 {
     bool Flag = false;
 
+#  if ( EOS == NUCLEAR )
     const double dh        = amr->dh[lv];
     const double Center[3] = { 0.5*amr->BoxSize[0], 0.5*amr->BoxSize[1], 0.5*amr->BoxSize[2] };
     const double Pos   [3] = { amr->patch[0][lv][PID]->EdgeL[0] + (i+0.5)*dh,
@@ -1049,7 +1050,7 @@ bool Flag_CoreCollapse( const int i, const int j, const int k, const int lv, con
 
     //printf("KC debug: user flags %14.7e  %14.7e %14.7e \n",  Threshold[0],Threshold[1],Threshold[2]);
     //printf("KC debug: dens entr [cgs] %14.7e  %14.7e\n", dens, entr);
- 
+
     if (!EOS_POSTBOUNCE) {
         // collapse
         if ( (r > Threshold[0]) &&  ( r < Threshold[1] ) && (dens > Threshold[2]) )
@@ -1060,6 +1061,8 @@ bool Flag_CoreCollapse( const int i, const int j, const int k, const int lv, con
         if ( (r > Threshold[0]) &&  ( r < Threshold[1] ) && (entr > Threshold[3]) )
            Flag = true;
     }
+#   endif // if ( EOS == NUCLEAR )
+
     return Flag;
 
 } // FUNCTION : Flag_CoreCollapse
