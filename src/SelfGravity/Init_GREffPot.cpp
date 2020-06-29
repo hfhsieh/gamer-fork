@@ -37,7 +37,8 @@ void Init_GREffPot( const int level, const double TimeNew )
    if ( level == -1 )   Init_GREP_Profile();
 
 // update the spherical-averaged profile
-   Update_GREP_Profile( level, TimeNew );
+//   Update_GREP_Profile( level, TimeNew );
+   Update_GREP_Profile( level, -1 );  // original method (without temporal interpolation)
 
 // combine the profile at each level
    Combine_GREP_Profile( DensAve, true );
