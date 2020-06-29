@@ -293,7 +293,7 @@ void EvolveLevel( const int lv, const double dTime_FaLv )
 //    construct the 1D GR potential correction
 //    use Timer_SF to record the execution time temporarily
 #     ifdef GREP
-      TIMING_FUNC( Init_GREffPot( lv ),
+      TIMING_FUNC( Init_GREffPot( lv, TimeNew ),
                    Timer_SF[lv]   );
 #     endif
 

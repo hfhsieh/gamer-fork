@@ -805,7 +805,8 @@ void Record_GWSignal_2nd()
                                          Phi_eff        = new Profile_t();
    for (int NProf=0; NProf<4; NProf++)   ProfAve[NProf] = new Profile_t();
 
-   Aux_ComputeProfile( ProfAve, Center, MaxRadius, MinBinSize, GREP_LOGBIN, GREP_LOGBINRATIO, true, TVar, 4, -1 );
+   Aux_ComputeProfile( ProfAve, Center, MaxRadius, MinBinSize, GREP_LOGBIN, GREP_LOGBINRATIO,
+                       true, TVar, 4, -1, -1, PATCH_LEAF, amr->FluSgTime[0][ amr->FluSg[0] ] );
    CPU_ComputeEffPot ( ProfAve[0], ProfAve[1], ProfAve[2], ProfAve[3], Phi_eff );
 
 
@@ -1086,7 +1087,8 @@ void Record_GWSignal_Full2nd()
                                          Phi_eff        = new Profile_t();
    for (int NProf=0; NProf<4; NProf++)   ProfAve[NProf] = new Profile_t();
 
-   Aux_ComputeProfile( ProfAve, Center, MaxRadius, MinBinSize, GREP_LOGBIN, GREP_LOGBINRATIO, true, TVar, 4, -1 );
+   Aux_ComputeProfile( ProfAve, Center, MaxRadius, MinBinSize, GREP_LOGBIN, GREP_LOGBINRATIO,
+                       true, TVar, 4, -1, -1, PATCH_LEAF, amr->FluSgTime[0][ amr->FluSg[0] ] );
    CPU_ComputeEffPot ( ProfAve[0], ProfAve[1], ProfAve[2], ProfAve[3], Phi_eff );
 
 
@@ -1394,8 +1396,7 @@ void Record_GWSignal_Full2nd_Opti()
    const double BoxCenter           [3] = { 0.5*amr->BoxSize[0], 0.5*amr->BoxSize[1], 0.5*amr->BoxSize[2] };
 
    // compute Init_GREffPot
-   Init_GREffPot( 0 );
-
+   Init_GREffPot( 0, amr->FluSgTime[0][ amr->FluSg[0] ] );
 
 
 // allocate memory for per-thread arrays
@@ -1708,8 +1709,7 @@ void Record_GWSignal_Part2nd_Opti()
    const double BoxCenter           [3] = { 0.5*amr->BoxSize[0], 0.5*amr->BoxSize[1], 0.5*amr->BoxSize[2] };
 
    // compute Init_GREffPot
-   Init_GREffPot( 0 );
-
+   Init_GREffPot( 0, amr->FluSgTime[0][ amr->FluSg[0] ] );
 
 
 // allocate memory for per-thread arrays
@@ -1961,7 +1961,7 @@ void Record_GWSignal_checkyz()
    const double BoxCenter           [3] = { 0.5*amr->BoxSize[0], 0.5*amr->BoxSize[1], 0.5*amr->BoxSize[2] };
 
    // compute Init_GREffPot
-   Init_GREffPot( 0 );
+   Init_GREffPot( 0, amr->FluSgTime[0][ amr->FluSg[0] ] );
 
    const double UNIT_QuadMom_2nd = UNIT_M * UNIT_V * UNIT_V;
    const double coe = 2.0 * Const_NewtonG / pow( Const_c, 4.0 );

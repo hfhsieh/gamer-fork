@@ -202,11 +202,6 @@ void Init_GAMER( int *argc, char ***argv )
 #  ifdef GRAVITY
    if ( OPT__GRAVITY_TYPE == GRAVITY_SELF  ||  OPT__GRAVITY_TYPE == GRAVITY_BOTH )
    {
-//    construct the 1D GR potential correction
-#     ifdef GREP
-      Init_GREffPot( -1 );
-#     endif
-
 //    initialize the k-space Green's function for the isolated BC.
       if ( OPT__BC_POT == BC_POT_ISOLATED )  Init_GreenFuncK();
 
@@ -233,6 +228,11 @@ void Init_GAMER( int *argc, char ***argv )
       } // for (int lv=0; lv<NLEVEL; lv++)
 
       if ( MPI_Rank == 0 )    Aux_Message( stdout, "%s ... done\n", "Calculating gravitational potential" );
+
+//    construct the 1D GR potential correction
+#     ifdef GREP
+      Init_GREffPot( -1, Time[0] );
+#     endif
    } // if ( OPT__GRAVITY_TYPE == GRAVITY_SELF  ||  OPT__GRAVITY_TYPE == GRAVITY_BOTH )
 #  endif // #ifdef GARVITY
 

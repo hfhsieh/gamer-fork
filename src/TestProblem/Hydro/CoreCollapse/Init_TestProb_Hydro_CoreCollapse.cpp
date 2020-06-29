@@ -685,7 +685,8 @@ void Record_GWSignal_Full2nd()
                                          Phi_eff        = new Profile_t();
    for (int NProf=0; NProf<4; NProf++)   ProfAve[NProf] = new Profile_t();
 
-   Aux_ComputeProfile( ProfAve, Center, MaxRadius, MinBinSize, GREP_LOGBIN, GREP_LOGBINRATIO, true, TVar, 4, -1 );
+   Aux_ComputeProfile( ProfAve, Center, MaxRadius, MinBinSize, GREP_LOGBIN, GREP_LOGBINRATIO,
+                       true, TVar, 4, -1, -1, PATCH_LEAF, amr->FluSgTime[0][ amr->FluSg[0] ] );
    CPU_ComputeEffPot ( ProfAve[0], ProfAve[1], ProfAve[2], ProfAve[3], Phi_eff );
 
 

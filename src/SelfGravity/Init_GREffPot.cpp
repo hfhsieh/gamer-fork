@@ -16,7 +16,9 @@ static double Center   [3]     = { 0.0 };
 static double MaxRadius;
 static double MinBinSize;
 
-void CombineProfile( Profile_t *Prof[], const bool RemoveEmpty );
+static void Init_GREP_Profile();
+static void Update_GREP_Profile( const int level, const double TimeNew );
+static void Combine_GREP_Profile( Profile_t *Prof[], const bool RemoveEmpty );
 
 
 //-------------------------------------------------------------------------------------------------------
@@ -28,47 +30,87 @@ void CombineProfile( Profile_t *Prof[], const bool RemoveEmpty );
 //                2. Enabled by the macros GRAVITY and GREP
 //                3. The total averaged profile is stored at QUANT[NLEVEL]
 //-------------------------------------------------------------------------------------------------------
-void Init_GREffPot( const int level )
+void Init_GREffPot( const int level, const double TimeNew )
 {
-   int NPatch_TopLv_new;
+
+// initialize the Center, MaxRadius, and MinBinSize at the first call;
+   if ( level == -1 )   Init_GREP_Profile();
+
+// update the spherical-averaged profile
+   Update_GREP_Profile( level, TimeNew );
+
+// combine the profile at each level
+   Combine_GREP_Profile( DensAve, true );
+   Combine_GREP_Profile( EngyAve, true );
+   Combine_GREP_Profile( VrAve,   true );
+   Combine_GREP_Profile( PresAve, true );
+
+//REVISE: copy Phi_eff[1] to Phi_eff[0] to support the feature Unsplit_Gravity
+
+// compute the GR effective potential
+   CPU_ComputeEffPot( DensAve[NLEVEL], EngyAve[NLEVEL], VrAve[NLEVEL], PresAve[NLEVEL], Phi_eff[1] );
+
+// initialize the auxiliary GPU arrays
+#  ifdef GPU
+   CUAPI_Init_GREffPot();
+#  endif
+
+} // FUNCTION : Init_GREffPot
 
 
-// Initialize the Center, MaxRadius, and MinBinSize at the first call;
-   if ( level == -1 )
+
+//-------------------------------------------------------------------------------------------------------
+// Function    :  Init_GREP_Profile
+// Description :  Initialize the Profiles_t objects
+//-------------------------------------------------------------------------------------------------------
+static void Init_GREP_Profile()
+{
+
+// initialize the Center, MaxRadius, and MinBinSize
+   switch ( GREP_CENTER_METHOD )
    {
-      switch ( GREP_CENTER_METHOD )
-      {
-         case 1:   for (int i=0; i<3; i++)   Center[i] = amr->BoxCenter[i];
-                   break;
-         default:  Aux_Error( ERROR_INFO, "incorrect parameter %s = %d !!\n", "GREP_CENTER_METHOD", GREP_CENTER_METHOD );
-      }
+      case 1:
+         for (int i=0; i<3; i++)   Center[i] = amr->BoxCenter[i];
+      break;
 
-//    Defaults to the distance between the center and the farthest box vertex
-      MaxRadius  = ( GREP_MAXRADIUS > 0.0 )  ? GREP_MAXRADIUS
-                                             : SQRT( SQR( MAX( amr->BoxSize[0] - Center[0], Center[0] ) )
-                                             +       SQR( MAX( amr->BoxSize[1] - Center[1], Center[1] ) )
-                                             +       SQR( MAX( amr->BoxSize[2] - Center[2], Center[2] ) ));
-
-      MinBinSize = ( GREP_MINBINSIZE > 0.0 ) ? GREP_MINBINSIZE
-                                             : amr->dh[MAX_LEVEL];
+      default:
+         Aux_Error( ERROR_INFO, "incorrect parameter %s = %d !!\n", "GREP_CENTER_METHOD", GREP_CENTER_METHOD );
    }
 
+// defaults to the distance between the center and the farthest box vertex
+   MaxRadius  = ( GREP_MAXRADIUS > 0.0 )  ? GREP_MAXRADIUS
+                                          : SQRT( SQR( MAX( amr->BoxSize[0] - Center[0], Center[0] ) )
+                                          +       SQR( MAX( amr->BoxSize[1] - Center[1], Center[1] ) )
+                                          +       SQR( MAX( amr->BoxSize[2] - Center[2], Center[2] ) ) );
 
-// Compute the spherical-averaged profile
+   MinBinSize = ( GREP_MINBINSIZE > 0.0 ) ? GREP_MINBINSIZE : amr->dh[MAX_LEVEL];
+
+
+// initialize pointer array of Profile
+   for (int lv=0; lv<=NLEVEL; lv++)
+   {
+      DensAve[lv] = new Profile_t();
+      EngyAve[lv] = new Profile_t();
+      VrAve  [lv] = new Profile_t();
+      PresAve[lv] = new Profile_t();
+   }
+
+   for (int PROFID=0; PROFID<2; PROFID++)
+      Phi_eff[PROFID] = new Profile_t();
+
+} // FUNCTION : Init_GREP_Profile
+
+
+
+//-------------------------------------------------------------------------------------------------------
+// Function    :  Update_GREP_Profile
+// Description :  Update the spherical-averaged profiles
+//-------------------------------------------------------------------------------------------------------
+static void Update_GREP_Profile( const int level, const double TimeNew )
+{
+
    if ( level == -1 )
    {
-//    Initialize pointer array of Profile
-      for (int lv=0; lv<NLEVEL+1; lv++)
-      {
-         DensAve[lv] = new Profile_t();
-         EngyAve[lv] = new Profile_t();
-         VrAve  [lv] = new Profile_t();
-         PresAve[lv] = new Profile_t();
-      }
-
-      for (int PROFID=0; PROFID<2; PROFID++)
-         Phi_eff[PROFID] = new Profile_t();
-
 //    compute the profile at all levels at the first call
       for (int lv=0; lv<NLEVEL; lv++)
       {
@@ -76,37 +118,22 @@ void Init_GREffPot( const int level )
          Profile_t *Prof [] = { DensAve[lv], VrAve[lv], PresAve[lv], EngyAve[lv] };
 
          Aux_ComputeProfile( Prof, Center, MaxRadius, MinBinSize, GREP_LOGBIN, GREP_LOGBINRATIO,
-                             false, TVar, 4, lv );
+                             false, TVar, 4, lv, -1, PATCH_LEAF, TimeNew );
       }
    }
 
    else
    {
-
-/*
-      if ( level == 0 )
-      {
-         for (int lv=0; lv<NLEVEL; lv++)
-         {
-            long       TVar [] = {       _DENS,     _VELR,       _PRES,   _EINT_DER };
-            Profile_t *Prof [] = { DensAve[lv], VrAve[lv], PresAve[lv], EngyAve[lv] };
-
-            Aux_ComputeProfile( Prof, Center, MaxRadius, MinBinSize, GREP_LOGBIN, GREP_LOGBINRATIO,
-                                false, TVar, 4, lv );
-         }
-      }
-*/
+      int NPatch_TopLv_new;
 
 //    update the profile at the current level
       {
          int          lv    = level;
-//         long       TVar [] = {       _DENS,     _VELR,       _PRES,   _EINT_DER };
-//         Profile_t *Prof [] = { DensAve[lv], VrAve[lv], PresAve[lv], EngyAve[lv] };
-         long       TVar [] = {       _DENS,   _EINT_DER,     _VELR,       _PRES };
-         Profile_t *Prof [] = { DensAve[lv], EngyAve[lv], VrAve[lv], PresAve[lv] };
+         long       TVar [] = {       _DENS,     _VELR,       _PRES,   _EINT_DER };
+         Profile_t *Prof [] = { DensAve[lv], VrAve[lv], PresAve[lv], EngyAve[lv] };
 
          Aux_ComputeProfile( Prof, Center, MaxRadius, MinBinSize, GREP_LOGBIN, GREP_LOGBINRATIO,
-                             false, TVar, 4, lv );
+                             false, TVar, 4, lv, -1, PATCH_LEAF, TimeNew  );
       }
 
 //    update profiles related to momentum and energy at last level when entering finer / coarser level
@@ -124,7 +151,7 @@ void Init_GREffPot( const int level )
             Profile_t *Prof [] = { DensAve[lv], VrAve[lv], PresAve[lv], EngyAve[lv] };
 
             Aux_ComputeProfile( Prof, Center, MaxRadius, MinBinSize, GREP_LOGBIN, GREP_LOGBINRATIO,
-                                false, TVar, 4, lv );
+                                false, TVar, 4, lv, -1, PATCH_LEAF, TimeNew  );
          }
          else
          {
@@ -133,7 +160,7 @@ void Init_GREffPot( const int level )
             Profile_t *Prof [] = { VrAve[lv], PresAve[lv], EngyAve[lv] };
 
             Aux_ComputeProfile( Prof, Center, MaxRadius, MinBinSize, GREP_LOGBIN, GREP_LOGBINRATIO,
-                                false, TVar, 3, lv );
+                                false, TVar, 3, lv, -1, PATCH_LEAF, TimeNew  );
          }
       }
 
@@ -147,38 +174,32 @@ void Init_GREffPot( const int level )
             Profile_t *Prof [] = { DensAve[lv], VrAve[lv], PresAve[lv], EngyAve[lv] };
 
             Aux_ComputeProfile( Prof, Center, MaxRadius, MinBinSize, GREP_LOGBIN, GREP_LOGBINRATIO,
-                                false, TVar, 4, lv );
+                                false, TVar, 4, lv, -1, PATCH_LEAF, TimeNew  );
          }
       }
 
+//    record the level and number of patches in finest level
+      if ( level_old != level )   NPatch_TopLv_old = NPatch_TopLv_new;
+      level_old = level;
    }
 
-
-// Combine the profile at each level
-   CombineProfile( DensAve, true );
-   CombineProfile( EngyAve, true );
-   CombineProfile( VrAve,   true );
-   CombineProfile( PresAve, true );
-
-//REVISE: copy Phi_eff[1] to Phi_eff[0] to support the feature Unsplit_Gravity
-
-// compute the GR effective potential
-   CPU_ComputeEffPot( DensAve[NLEVEL], EngyAve[NLEVEL], VrAve[NLEVEL], PresAve[NLEVEL], Phi_eff[1] );
-
-// initialize the auxiliary GPU arrays
-#  ifdef GPU
-   CUAPI_Init_GREffPot();
-#  endif
-
-// record the level and number of patches in finest level
-   if ( level_old != level )   NPatch_TopLv_old = NPatch_TopLv_new;
-   level_old = level;
-
-} // FUNCTION : Init_GREffPot
+} // FUNCTION : Update_GREP_Profile
 
 
 
-void CombineProfile( Profile_t *Prof[], const bool RemoveEmpty )
+//-------------------------------------------------------------------------------------------------------
+// Function    :  Combine_GREP_Profile
+// Description :  Combine the separated spherical-averaged profiles
+//
+// Note        :  1. Invoked by Init_GREffPot()
+//                2. The total averaged profile is stored at QUANT[NLEVEL]
+//
+// Parameter   :  Prof        : Profiles_t object array to be combined
+//                RemoveEmpty : true  --> remove empty bins from the data
+//                              false --> these empty bins will still be in the profile arrays with
+//                                        Data[empty_bin]=Weight[empty_bin]=NCell[empty_bin]=0
+//-------------------------------------------------------------------------------------------------------
+void Combine_GREP_Profile( Profile_t *Prof[], const bool RemoveEmpty )
 {
 
 // copy bin information into Prof[NLEVEL]
@@ -255,7 +276,7 @@ void CombineProfile( Profile_t *Prof[], const bool RemoveEmpty )
                                                          : Prof[NLEVEL]->Radius[LastBin] + 0.5*MinBinSize;
    }
 
-} // FUNCTION : CombineProfile
+} // FUNCTION : Combine_GREP_Profile
 
 
 
