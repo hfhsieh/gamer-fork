@@ -1,7 +1,7 @@
 #include "CUPOT.h"
 #include <stdio.h>
 
-#if ( defined GRAVITY  &&  defined GREP )
+#if ( defined GPU  &&  defined GRAVITY  &&  defined GREP )
 
 
 // external functions and GPU-related set-up
@@ -155,4 +155,4 @@ void CUPOT_CorrectEffPot(       real   g_Pot_Array_New[][ CUBE(GRA_NXT) ],
 } // FUNCTION : CPU_CorrectEffPot
 
 
-#endif // #if ( defined GRAVITY  &&  defined GREP )
+#endif // #if ( defined GPU  &&  defined GRAVITY  &&  defined GREP )

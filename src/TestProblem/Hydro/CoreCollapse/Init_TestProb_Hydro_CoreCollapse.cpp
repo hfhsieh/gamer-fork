@@ -27,7 +27,9 @@ static double Mis_InterpolateFromTable_Ext( Profile_t *Phi, const double r );
 static void Record_GWSignal_Full2nd();
 
 
-extern Profile_t *Phi_eff[2];
+extern int        GREP_LvUpdate;
+extern int        GREPSg  [NLEVEL];
+extern Profile_t *Phi_eff [NLEVEL][2];
 
 //-------------------------------------------------------------------------------------------------------
 // Function    :  Validate

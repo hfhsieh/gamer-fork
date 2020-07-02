@@ -6,7 +6,9 @@
 
 #define LinearInterp( x, xa, xb, ya, yb )   ( ( ((x) - (xa)) * (yb) + ((xb) - (x)) * (ya) ) / ((xb) - (xa)) )
 
-extern Profile_t *Phi_eff[2];
+extern int        GREP_LvUpdate;
+extern int        GREPSg  [NLEVEL];
+extern Profile_t *Phi_eff [NLEVEL][2];
 
 
 //-------------------------------------------------------------------------------------------------------
@@ -35,7 +37,7 @@ void CPU_CorrectEffPot(       real   g_Pot_Array_New[][ CUBE(GRA_NXT) ],
 {
 
 // REVISE: support USG feature
-      Profile_t *Phi    = Phi_eff[1];
+      Profile_t *Phi    = Phi_eff[GREP_LvUpdate][ GREPSg[GREP_LvUpdate] ];
 
 // Profile information
    const    int  NBin   = Phi->NBin;

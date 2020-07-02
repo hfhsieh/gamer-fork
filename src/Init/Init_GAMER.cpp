@@ -209,6 +209,14 @@ void Init_GAMER( int *argc, char ***argv )
 //    evaluate the initial average density if it is not set yet (may already be set in Init_ByRestart)
       if ( AveDensity_Init <= 0.0 )    Poi_GetAverageDensity();
 
+//    evaluate the GR effective potential
+#     ifdef GREP
+      if ( MPI_Rank == 0 )    Aux_Message( stdout, "%s ...\n", "Calculating GR effective potential" );
+
+      Init_GREffPot( -1, -1.0 );
+
+      if ( MPI_Rank == 0 )    Aux_Message( stdout, "%s ... done\n", "Calculating GR effective potential" );
+#     endif
 
 //    evaluate the gravitational potential
       if ( MPI_Rank == 0 )    Aux_Message( stdout, "%s ...\n", "Calculating gravitational potential" );
@@ -229,10 +237,6 @@ void Init_GAMER( int *argc, char ***argv )
 
       if ( MPI_Rank == 0 )    Aux_Message( stdout, "%s ... done\n", "Calculating gravitational potential" );
 
-//    construct the 1D GR potential correction
-#     ifdef GREP
-      Init_GREffPot( -1, Time[0] );
-#     endif
    } // if ( OPT__GRAVITY_TYPE == GRAVITY_SELF  ||  OPT__GRAVITY_TYPE == GRAVITY_BOTH )
 #  endif // #ifdef GARVITY
 

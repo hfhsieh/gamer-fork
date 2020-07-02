@@ -32,7 +32,9 @@ static void Record_CentralDens();
 static void Record_GWSignal_checkyz();
 
 
-extern Profile_t *Phi_eff[2];
+extern int        GREP_LvUpdate;
+extern int        GREPSg  [NLEVEL];
+extern Profile_t *Phi_eff [NLEVEL][2];
 
 
 //-------------------------------------------------------------------------------------------------------
@@ -451,8 +453,8 @@ void Record_MigrationTest()
 //      Record_GWSignal_1st();
 //      Record_GWSignal_2nd();
 //      Record_GWSignal_Full2nd();
-//      Record_GWSignal_Full2nd_Opti();
-      Record_GWSignal_Part2nd_Opti();
+      Record_GWSignal_Full2nd_Opti();
+//      Record_GWSignal_Part2nd_Opti();
 
 //      Record_GWSignal_checkyz();
    }
@@ -1395,10 +1397,6 @@ void Record_GWSignal_Full2nd_Opti()
    const char   filename_QuadMom_2nd[ ] = "Record__QuadMom_2nd";
    const double BoxCenter           [3] = { 0.5*amr->BoxSize[0], 0.5*amr->BoxSize[1], 0.5*amr->BoxSize[2] };
 
-   // compute Init_GREffPot
-   Init_GREffPot( 0, amr->FluSgTime[0][ amr->FluSg[0] ] );
-
-
 // allocate memory for per-thread arrays
 #  ifdef OPENMP
    const int NT = OMP_NTHREAD;   // number of OpenMP threads
@@ -1418,6 +1416,9 @@ void Record_GWSignal_Full2nd_Opti()
    double **OMP_QuadMom_2nd=NULL;
    Aux_AllocateArray2D( OMP_QuadMom_2nd, NT, NData );
 
+// update GREP
+   for (int lv=0; lv<NLEVEL; lv++)   Init_GREffPot( lv, Time[lv] );
+
 
 #  pragma omp parallel
    {
@@ -1432,6 +1433,8 @@ void Record_GWSignal_Full2nd_Opti()
 
       for (int lv=0; lv<NLEVEL; lv++)
       {
+         Profile_t *Phi_GREP = Phi_eff[lv][ GREPSg[lv] ];
+
          const double dh = amr->dh[lv];
          const double dv = CUBE( dh );
 //         const double TimeNew = ( Time[lv] == 0.0 )? 0 : 1;
@@ -1492,7 +1495,7 @@ void Record_GWSignal_Full2nd_Opti()
                const double _dens = 1.0 / dens;
 
                const double r = SQRT( SQR(dx) + SQR(dy) + SQR(dz) );
-               const double Phi_eff_r = Mis_InterpolateFromTable_Ext( Phi_eff[1], r );
+               const double Phi_eff_r = Mis_InterpolateFromTable_Ext( Phi_GREP, r );
 
                double dPhi_dx, dPhi_dy, dPhi_dz;
 
@@ -1524,8 +1527,8 @@ void Record_GWSignal_Full2nd_Opti()
 //             dPhi_dx
                const double rpx = SQRT( SQR(dx + dh) + SQR(dy) + SQR(dz) );
                const double rmx = SQRT( SQR(dx - dh) + SQR(dy) + SQR(dz) );
-               const double Phi_eff_rpx = Mis_InterpolateFromTable_Ext( Phi_eff[1], rpx );
-               const double Phi_eff_rmx = Mis_InterpolateFromTable_Ext( Phi_eff[1], rmx );
+               const double Phi_eff_rpx = Mis_InterpolateFromTable_Ext( Phi_GREP, rpx );
+               const double Phi_eff_rmx = Mis_InterpolateFromTable_Ext( Phi_GREP, rmx );
 
                switch (i)
                {
@@ -1551,8 +1554,8 @@ void Record_GWSignal_Full2nd_Opti()
 //             dPhi_dy
                const double rpy = SQRT( SQR(dx) + SQR(dy + dh) + SQR(dz) );
                const double rmy = SQRT( SQR(dx) + SQR(dy - dh) + SQR(dz) );
-               const double Phi_eff_rpy = Mis_InterpolateFromTable_Ext( Phi_eff[1], rpy );
-               const double Phi_eff_rmy = Mis_InterpolateFromTable_Ext( Phi_eff[1], rmy );
+               const double Phi_eff_rpy = Mis_InterpolateFromTable_Ext( Phi_GREP, rpy );
+               const double Phi_eff_rmy = Mis_InterpolateFromTable_Ext( Phi_GREP, rmy );
 
                switch (j)
                {
@@ -1579,8 +1582,8 @@ void Record_GWSignal_Full2nd_Opti()
 //             dPhi_dz
                const double rpz = SQRT( SQR(dx) + SQR(dy) + SQR(dz + dh) );
                const double rmz = SQRT( SQR(dx) + SQR(dy) + SQR(dz - dh) );
-               const double Phi_eff_rpz = Mis_InterpolateFromTable_Ext( Phi_eff[1], rpz );
-               const double Phi_eff_rmz = Mis_InterpolateFromTable_Ext( Phi_eff[1], rmz );
+               const double Phi_eff_rpz = Mis_InterpolateFromTable_Ext( Phi_GREP, rpz );
+               const double Phi_eff_rmz = Mis_InterpolateFromTable_Ext( Phi_GREP, rmz );
 
 
                switch (k)
@@ -1708,10 +1711,6 @@ void Record_GWSignal_Part2nd_Opti()
    const char   filename_QuadMom_2nd[ ] = "Record__QuadMom_2nd";
    const double BoxCenter           [3] = { 0.5*amr->BoxSize[0], 0.5*amr->BoxSize[1], 0.5*amr->BoxSize[2] };
 
-   // compute Init_GREffPot
-   Init_GREffPot( 0, amr->FluSgTime[0][ amr->FluSg[0] ] );
-
-
 // allocate memory for per-thread arrays
 #  ifdef OPENMP
    const int NT = OMP_NTHREAD;   // number of OpenMP threads
@@ -1725,6 +1724,9 @@ void Record_GWSignal_Part2nd_Opti()
    double QuadMom_2nd[NData] = { 0.0 };
    double **OMP_QuadMom_2nd=NULL;
    Aux_AllocateArray2D( OMP_QuadMom_2nd, NT, NData );
+
+// update GREP
+   for (int lv=0; lv<NLEVEL; lv++)   Init_GREffPot( lv, Time[lv] );
 
 
 #  pragma omp parallel
@@ -1740,6 +1742,8 @@ void Record_GWSignal_Part2nd_Opti()
 
       for (int lv=0; lv<NLEVEL; lv++)
       {
+         Profile_t *Phi_GREP = Phi_eff[lv][ GREPSg[lv] ];
+
          const double dh = amr->dh[lv];
          const double dv = CUBE( dh );
 
@@ -1763,7 +1767,7 @@ void Record_GWSignal_Part2nd_Opti()
                const double _dens = 1.0 / dens;
 
                const double r = SQRT( SQR(dx) + SQR(dy) + SQR(dz) );
-               const double Phi_eff_r = Mis_InterpolateFromTable_Ext( Phi_eff[1], r );
+               const double Phi_eff_r = Mis_InterpolateFromTable_Ext( Phi_GREP, r );
 
                double dPhi_dx, dPhi_dy, dPhi_dz;
 
@@ -1771,7 +1775,7 @@ void Record_GWSignal_Part2nd_Opti()
                if ( i == 0 )
                {
                   const double rpx = SQRT( SQR(dx + dh) + SQR(dy) + SQR(dz) );
-                  const double Phi_eff_rpx = Mis_InterpolateFromTable_Ext( Phi_eff[1], rpx );
+                  const double Phi_eff_rpx = Mis_InterpolateFromTable_Ext( Phi_GREP, rpx );
 
                   dPhi_dx = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i+1] + Phi_eff_rpx
                             - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   - Phi_eff_r   ) / dh;
@@ -1781,8 +1785,8 @@ void Record_GWSignal_Part2nd_Opti()
                {
                   const double rpx = SQRT( SQR(dx + dh) + SQR(dy) + SQR(dz) );
                   const double rmx = SQRT( SQR(dx - dh) + SQR(dy) + SQR(dz) );
-                  const double Phi_eff_rpx = Mis_InterpolateFromTable_Ext( Phi_eff[1], rpx );
-                  const double Phi_eff_rmx = Mis_InterpolateFromTable_Ext( Phi_eff[1], rmx );
+                  const double Phi_eff_rpx = Mis_InterpolateFromTable_Ext( Phi_GREP, rpx );
+                  const double Phi_eff_rmx = Mis_InterpolateFromTable_Ext( Phi_GREP, rmx );
 
                   dPhi_dx = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i+1] + Phi_eff_rpx
                             - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i-1] - Phi_eff_rmx ) / (2.0 * dh);
@@ -1791,7 +1795,7 @@ void Record_GWSignal_Part2nd_Opti()
                else
                {
                   const double rmx = SQRT( SQR(dx - dh) + SQR(dy) + SQR(dz) );
-                  const double Phi_eff_rmx = Mis_InterpolateFromTable_Ext( Phi_eff[1], rmx );
+                  const double Phi_eff_rmx = Mis_InterpolateFromTable_Ext( Phi_GREP, rmx );
 
                   dPhi_dx = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   + Phi_eff_r
                             - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i-1] - Phi_eff_rmx  ) / dh;
@@ -1801,7 +1805,7 @@ void Record_GWSignal_Part2nd_Opti()
                if ( j == 0 )
                {
                   const double rpy = SQRT( SQR(dx) + SQR(dy + dh) + SQR(dz) );
-                  const double Phi_eff_rpy = Mis_InterpolateFromTable_Ext( Phi_eff[1], rpy );
+                  const double Phi_eff_rpy = Mis_InterpolateFromTable_Ext( Phi_GREP, rpy );
 
                   dPhi_dy = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j+1][i] + Phi_eff_rpy
                             - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   - Phi_eff_r   ) / dh;
@@ -1810,8 +1814,8 @@ void Record_GWSignal_Part2nd_Opti()
                {
                   const double rpy = SQRT( SQR(dx) + SQR(dy + dh) + SQR(dz) );
                   const double rmy = SQRT( SQR(dx) + SQR(dy - dh) + SQR(dz) );
-                  const double Phi_eff_rpy = Mis_InterpolateFromTable_Ext( Phi_eff[1], rpy );
-                  const double Phi_eff_rmy = Mis_InterpolateFromTable_Ext( Phi_eff[1], rmy );
+                  const double Phi_eff_rpy = Mis_InterpolateFromTable_Ext( Phi_GREP, rpy );
+                  const double Phi_eff_rmy = Mis_InterpolateFromTable_Ext( Phi_GREP, rmy );
 
                   dPhi_dy = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j+1][i] + Phi_eff_rpy
                             - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j-1][i] - Phi_eff_rmy ) / (2.0 * dh);
@@ -1819,7 +1823,7 @@ void Record_GWSignal_Part2nd_Opti()
                else
                {
                   const double rmy = SQRT( SQR(dx) + SQR(dy - dh) + SQR(dz) );
-                  const double Phi_eff_rmy = Mis_InterpolateFromTable_Ext( Phi_eff[1], rmy );
+                  const double Phi_eff_rmy = Mis_InterpolateFromTable_Ext( Phi_GREP, rmy );
 
                   dPhi_dy = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   + Phi_eff_r
                             - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j-1][i] - Phi_eff_rmy  ) / dh;
@@ -1829,7 +1833,7 @@ void Record_GWSignal_Part2nd_Opti()
                if ( k == 0 )
                {
                   const double rpz = SQRT( SQR(dx) + SQR(dy) + SQR(dz + dh) );
-                  const double Phi_eff_rpz = Mis_InterpolateFromTable_Ext( Phi_eff[1], rpz );
+                  const double Phi_eff_rpz = Mis_InterpolateFromTable_Ext( Phi_GREP, rpz );
 
                   dPhi_dz = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k+1][j][i] + Phi_eff_rpz
                             - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   - Phi_eff_r   ) / dh;
@@ -1838,8 +1842,8 @@ void Record_GWSignal_Part2nd_Opti()
                {
                   const double rpz = SQRT( SQR(dx) + SQR(dy) + SQR(dz + dh) );
                   const double rmz = SQRT( SQR(dx) + SQR(dy) + SQR(dz - dh) );
-                  const double Phi_eff_rpz = Mis_InterpolateFromTable_Ext( Phi_eff[1], rpz );
-                  const double Phi_eff_rmz = Mis_InterpolateFromTable_Ext( Phi_eff[1], rmz );
+                  const double Phi_eff_rpz = Mis_InterpolateFromTable_Ext( Phi_GREP, rpz );
+                  const double Phi_eff_rmz = Mis_InterpolateFromTable_Ext( Phi_GREP, rmz );
 
                   dPhi_dz = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k+1][j][i] + Phi_eff_rpz
                             - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k-1][j][i] - Phi_eff_rmz ) / (2.0 * dh);
@@ -1847,7 +1851,7 @@ void Record_GWSignal_Part2nd_Opti()
                else
                {
                   const double rmz = SQRT( SQR(dx) + SQR(dy) + SQR(dz - dh) );
-                  const double Phi_eff_rmz = Mis_InterpolateFromTable_Ext( Phi_eff[1], rmz );
+                  const double Phi_eff_rmz = Mis_InterpolateFromTable_Ext( Phi_GREP, rmz );
 
                   dPhi_dz = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   + Phi_eff_r
                             - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k-1][j][i] - Phi_eff_rmz  ) / dh;
@@ -1960,9 +1964,6 @@ void Record_GWSignal_checkyz()
    const char   filename_Check_2nd[ ] = "Check__yz_2ndPartDiff";
    const double BoxCenter           [3] = { 0.5*amr->BoxSize[0], 0.5*amr->BoxSize[1], 0.5*amr->BoxSize[2] };
 
-   // compute Init_GREffPot
-   Init_GREffPot( 0, amr->FluSgTime[0][ amr->FluSg[0] ] );
-
    const double UNIT_QuadMom_2nd = UNIT_M * UNIT_V * UNIT_V;
    const double coe = 2.0 * Const_NewtonG / pow( Const_c, 4.0 );
 
@@ -1990,6 +1991,9 @@ void Record_GWSignal_checkyz()
    double **OMP_QuadMom_2nd=NULL;
    Aux_AllocateArray2D( OMP_QuadMom_2nd, NT, NData );
 
+// update GREP
+   for (int lv=0; lv<NLEVEL; lv++)   Init_GREffPot( lv, Time[lv] );
+
 
 #  pragma omp parallel
    {
@@ -2004,6 +2008,8 @@ void Record_GWSignal_checkyz()
 
       for (int lv=0; lv<NLEVEL; lv++)
       {
+         Profile_t *Phi_GREP = Phi_eff[lv][ GREPSg[lv] ];
+
          const double dh = amr->dh[lv];
          const double dv = CUBE( dh );
 
@@ -2027,7 +2033,7 @@ void Record_GWSignal_checkyz()
                const double _dens = 1.0 / dens;
 
                const double r = SQRT( SQR(dx) + SQR(dy) + SQR(dz) );
-               const double Phi_eff_r = Mis_InterpolateFromTable_Ext( Phi_eff[1], r );
+               const double Phi_eff_r = Mis_InterpolateFromTable_Ext( Phi_GREP, r );
 
                double dPhi_dx, dPhi_dy, dPhi_dz;
                double dPhi_dx_1st, dPhi_dy_1st, dPhi_dz_1st;
@@ -2036,7 +2042,7 @@ void Record_GWSignal_checkyz()
                if ( i == 0 )
                {
                   const double rpx = SQRT( SQR(dx + dh) + SQR(dy) + SQR(dz) );
-                  const double Phi_eff_rpx = Mis_InterpolateFromTable_Ext( Phi_eff[1], rpx );
+                  const double Phi_eff_rpx = Mis_InterpolateFromTable_Ext( Phi_GREP, rpx );
 
                   dPhi_dx = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i+1] + Phi_eff_rpx
                             - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   - Phi_eff_r   ) / dh;
@@ -2047,8 +2053,8 @@ void Record_GWSignal_checkyz()
                {
                   const double rpx = SQRT( SQR(dx + dh) + SQR(dy) + SQR(dz) );
                   const double rmx = SQRT( SQR(dx - dh) + SQR(dy) + SQR(dz) );
-                  const double Phi_eff_rpx = Mis_InterpolateFromTable_Ext( Phi_eff[1], rpx );
-                  const double Phi_eff_rmx = Mis_InterpolateFromTable_Ext( Phi_eff[1], rmx );
+                  const double Phi_eff_rpx = Mis_InterpolateFromTable_Ext( Phi_GREP, rpx );
+                  const double Phi_eff_rmx = Mis_InterpolateFromTable_Ext( Phi_GREP, rmx );
 
                   dPhi_dx = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i+1] + Phi_eff_rpx
                             - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i-1] - Phi_eff_rmx ) / (2.0 * dh);
@@ -2059,7 +2065,7 @@ void Record_GWSignal_checkyz()
                else
                {
                   const double rmx = SQRT( SQR(dx - dh) + SQR(dy) + SQR(dz) );
-                  const double Phi_eff_rmx = Mis_InterpolateFromTable_Ext( Phi_eff[1], rmx );
+                  const double Phi_eff_rmx = Mis_InterpolateFromTable_Ext( Phi_GREP, rmx );
 
                   dPhi_dx = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   + Phi_eff_r
                             - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i-1] - Phi_eff_rmx  ) / dh;
@@ -2070,7 +2076,7 @@ void Record_GWSignal_checkyz()
                if ( j == 0 )
                {
                   const double rpy = SQRT( SQR(dx) + SQR(dy + dh) + SQR(dz) );
-                  const double Phi_eff_rpy = Mis_InterpolateFromTable_Ext( Phi_eff[1], rpy );
+                  const double Phi_eff_rpy = Mis_InterpolateFromTable_Ext( Phi_GREP, rpy );
 
                   dPhi_dy = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j+1][i] + Phi_eff_rpy
                             - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   - Phi_eff_r   ) / dh;
@@ -2080,8 +2086,8 @@ void Record_GWSignal_checkyz()
                {
                   const double rpy = SQRT( SQR(dx) + SQR(dy + dh) + SQR(dz) );
                   const double rmy = SQRT( SQR(dx) + SQR(dy - dh) + SQR(dz) );
-                  const double Phi_eff_rpy = Mis_InterpolateFromTable_Ext( Phi_eff[1], rpy );
-                  const double Phi_eff_rmy = Mis_InterpolateFromTable_Ext( Phi_eff[1], rmy );
+                  const double Phi_eff_rpy = Mis_InterpolateFromTable_Ext( Phi_GREP, rpy );
+                  const double Phi_eff_rmy = Mis_InterpolateFromTable_Ext( Phi_GREP, rmy );
 
                   dPhi_dy = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j+1][i] + Phi_eff_rpy
                             - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j-1][i] - Phi_eff_rmy ) / (2.0 * dh);
@@ -2091,7 +2097,7 @@ void Record_GWSignal_checkyz()
                else
                {
                   const double rmy = SQRT( SQR(dx) + SQR(dy - dh) + SQR(dz) );
-                  const double Phi_eff_rmy = Mis_InterpolateFromTable_Ext( Phi_eff[1], rmy );
+                  const double Phi_eff_rmy = Mis_InterpolateFromTable_Ext( Phi_GREP, rmy );
 
                   dPhi_dy = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   + Phi_eff_r
                             - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j-1][i] - Phi_eff_rmy  ) / dh;
@@ -2102,7 +2108,7 @@ void Record_GWSignal_checkyz()
                if ( k == 0 )
                {
                   const double rpz = SQRT( SQR(dx) + SQR(dy) + SQR(dz + dh) );
-                  const double Phi_eff_rpz = Mis_InterpolateFromTable_Ext( Phi_eff[1], rpz );
+                  const double Phi_eff_rpz = Mis_InterpolateFromTable_Ext( Phi_GREP, rpz );
 
                   dPhi_dz = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k+1][j][i] + Phi_eff_rpz
                             - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   - Phi_eff_r   ) / dh;
@@ -2112,8 +2118,8 @@ void Record_GWSignal_checkyz()
                {
                   const double rpz = SQRT( SQR(dx) + SQR(dy) + SQR(dz + dh) );
                   const double rmz = SQRT( SQR(dx) + SQR(dy) + SQR(dz - dh) );
-                  const double Phi_eff_rpz = Mis_InterpolateFromTable_Ext( Phi_eff[1], rpz );
-                  const double Phi_eff_rmz = Mis_InterpolateFromTable_Ext( Phi_eff[1], rmz );
+                  const double Phi_eff_rpz = Mis_InterpolateFromTable_Ext( Phi_GREP, rpz );
+                  const double Phi_eff_rmz = Mis_InterpolateFromTable_Ext( Phi_GREP, rmz );
 
                   dPhi_dz = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k+1][j][i] + Phi_eff_rpz
                             - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k-1][j][i] - Phi_eff_rmz ) / (2.0 * dh);
@@ -2123,7 +2129,7 @@ void Record_GWSignal_checkyz()
                else
                {
                   const double rmz = SQRT( SQR(dx) + SQR(dy) + SQR(dz - dh) );
-                  const double Phi_eff_rmz = Mis_InterpolateFromTable_Ext( Phi_eff[1], rmz );
+                  const double Phi_eff_rmz = Mis_InterpolateFromTable_Ext( Phi_GREP, rmz );
 
                   dPhi_dz = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   + Phi_eff_r
                             - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k-1][j][i] - Phi_eff_rmz  ) / dh;
