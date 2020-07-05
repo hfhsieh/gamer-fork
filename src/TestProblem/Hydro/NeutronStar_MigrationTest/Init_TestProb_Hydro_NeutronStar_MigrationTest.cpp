@@ -1417,7 +1417,7 @@ void Record_GWSignal_Full2nd_Opti()
    Aux_AllocateArray2D( OMP_QuadMom_2nd, NT, NData );
 
 // update GREP
-   for (int lv=0; lv<NLEVEL; lv++)   Init_GREffPot( lv, Time[lv] );
+//   for (int lv=0; lv<NLEVEL; lv++)   Init_GREffPot( lv, Time[lv] );
 
 
 #  pragma omp parallel
