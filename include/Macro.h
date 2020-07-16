@@ -586,6 +586,13 @@
 #endif
 
 
+// size of auxiliary arrays
+#ifdef GRAVITY
+#  define EXT_POT_NAUX_MAX       10    // ExtPot_AuxArray[]
+#  define EXT_ACC_NAUX_MAX       10    // ExtAcc_AuxArray[]
+#endif
+
+
 // extreme values
 #ifndef __INT_MAX__
 #  define __INT_MAX__      2147483647
@@ -620,13 +627,24 @@
 #endif
 
 
-// extreme value used for various purpose (e.g., floor value for passive scalars)
+// extreme value used for various purposes (e.g., floor value for passive scalars)
 #ifdef FLOAT8
 #  define TINY_NUMBER      __DBL_MIN__
 #  define HUGE_NUMBER      __DBL_MAX__
 #else
 #  define TINY_NUMBER      __FLT_MIN__
 #  define HUGE_NUMBER      __FLT_MAX__
+#endif
+
+
+// maximum allowed error for various purposes (e.g., exact Riemann solver, MHD routines, Mis_CompareRealValue())
+#define MAX_ERROR_DBL      1.0e-14
+#define MAX_ERROR_FLT      1.0e-06f
+
+#ifdef FLOAT8
+#  define MAX_ERROR        MAX_ERROR_DBL
+#else
+#  define MAX_ERROR        MAX_ERROR_FLT
 #endif
 
 

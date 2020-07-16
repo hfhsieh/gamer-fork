@@ -46,8 +46,6 @@ extern void (*End_User_Ptr)();
 extern void (*Src_User_Ptr)( real fluid[], const double x, const double y, const double z, const double Time,
                              const int lv, double AuxArray[], const double dt );
 #ifdef GRAVITY
-extern void (*Init_ExternalAcc_Ptr)();
-extern void (*Init_ExternalPot_Ptr)();
 extern real (*Poi_AddExtraMassForGravity_Ptr)( const double x, const double y, const double z, const double Time,
                                                const int lv, double AuxArray[] );
 #endif
@@ -57,14 +55,6 @@ extern void (*Par_Init_ByFunction_Ptr)( const long NPar_ThisRank, const long NPa
                                         real *ParVelX, real *ParVelY, real *ParVelZ, real *ParTime,
                                         real *AllAttribute[PAR_NATT_TOTAL] );
 extern void (*Par_Init_Attribute_User_Ptr)();
-#endif
-
-
-// common global variables
-#ifdef GRAVITY
-#include "CUPOT.h"
-extern double ExtPot_AuxArray[EXT_POT_NAUX_MAX];
-extern double ExtAcc_AuxArray[EXT_ACC_NAUX_MAX];
 #endif
 
 
