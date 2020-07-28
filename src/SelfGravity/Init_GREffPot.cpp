@@ -91,9 +91,11 @@ void Init_GREffPot( const int level, const double TimeNew )
       {
 //       update the spherical-averaged profile
          if ( Do_TEMPINT_in_ComputeProfile )
-            Update_GREP_Profile( level, Sg, TimeNew );  // do interpolation in ComputeProfile()
+//          do interpolation in ComputeProfile()
+            Update_GREP_Profile( level, Sg, TimeNew );
          else
-            Update_GREP_Profile( level, Sg, -1.0    );  // do interpolation in the stored profiles
+//          do interpolation in the stored profiles
+            Update_GREP_Profile( level, Sg, -1.0    );
 
 //       combine the profile at each level
          Combine_GREP_Profile( DensAve, level, Sg, TimeNew, true );
@@ -103,7 +105,7 @@ void Init_GREffPot( const int level, const double TimeNew )
 
 //       compute the GR effective potential
          CPU_ComputeEffPot( DensAve[NLEVEL][Sg], EngyAve[NLEVEL][Sg], VrAve[NLEVEL][Sg], PresAve[NLEVEL][Sg],
-                            Phi_eff[level ][Sg] );
+                            Phi_eff[ level][Sg] );
       }
 
 //    initialize the auxiliary GPU arrays
@@ -180,17 +182,22 @@ static void Update_GREP_Profile( const int level, const int Sg, const double Pre
    Profile_t *Prof_NonLeaf [] = { DensAve[NLEVEL][Sg], VrAve[NLEVEL][Sg], PresAve[NLEVEL][Sg], EngyAve[NLEVEL][Sg] };
 
    if ( Do_TEMPINT_in_ComputeProfile )
+   {
+//###CHECK: does leaf patch transit to non-leaf path at sub-cycling?
 //    update the profile from leaf patches at level equal/below the specified level
       Aux_ComputeProfile( Prof_Leaf,    Center, MaxRadius, MinBinSize, GREP_LOGBIN, GREP_LOGBINRATIO, false, TVar,
                           4, -1,    level, PATCH_LEAF,    PrepTime );
+   }
+
    else
    {
 //    update the profile from leaf patches at the current level
       Aux_ComputeProfile( Prof_Leaf,    Center, MaxRadius, MinBinSize, GREP_LOGBIN, GREP_LOGBINRATIO, false, TVar,
                           4, level, -1,    PATCH_LEAF,    PrepTime );
 
+//###CHECK: does the correction affect leaf patch? If no, this part is not necesary.
 //    also update the USG profile to account for the correction from finer level
-      if ( ( level < TOP_LEVEL )  &&  ( GREPSgTime[level][Sg_USG] >= 0 ) )
+      if ( ( level < TOP_LEVEL )  &&  ( GREPSgTime[level][1 - Sg] >= 0 ) )
       {
          int               Sg_USG    = 1 - Sg;
          double          Time_USG    = GREPSgTime[level][Sg_USG];
@@ -261,7 +268,7 @@ void Combine_GREP_Profile( Profile_t *Prof[][2], const int level, const int Sg, 
          Profile_t *Prof_Leaf_IntT = ( FluIntTime ) ? Prof[lv][FluSg_IntT] : NULL;
 
 
-//CHECK: if the radius of each bin is the same in Prof_Leaf and Prof_Leaf_IntT?
+//CHECK: Are the radii of each bin the same in Prof_Leaf and Prof_Leaf_IntT, if the center is not fixed with time?
 //       add contributions from leaf patches at level=lv
          for (int b=0; b<Prof_Leaf->NBin; b++)
          {
