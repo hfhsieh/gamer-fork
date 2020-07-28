@@ -18,7 +18,7 @@ static double MaxRadius;
 static double MinBinSize;
 
 // temporary switch for test different approaches: do interpolation in ComputeProfile() or in stored profiles
-static bool Do_TEMPINT_in_ComputeProfile = false;
+static bool Do_TEMPINT_in_ComputeProfile = true;
 
 
 static void Init_GREP_Profile();
@@ -79,6 +79,8 @@ void Init_GREffPot( const int level, const double TimeNew )
          FluUpdateTime = true;
          Sg            = 1 - GREPSg[level];
       }
+
+      FluUpdateTime = true;
 
       GREP_LvUpdate         = level;
       GREPSg    [level]     = Sg;
@@ -182,10 +184,22 @@ static void Update_GREP_Profile( const int level, const int Sg, const double Pre
       Aux_ComputeProfile( Prof_Leaf,    Center, MaxRadius, MinBinSize, GREP_LOGBIN, GREP_LOGBINRATIO, false, TVar,
                           4, -1,    level, PATCH_LEAF,    PrepTime );
    else
+   {
 //    update the profile from leaf patches at the current level
       Aux_ComputeProfile( Prof_Leaf,    Center, MaxRadius, MinBinSize, GREP_LOGBIN, GREP_LOGBINRATIO, false, TVar,
                           4, level, -1,    PATCH_LEAF,    PrepTime );
 
+//    also update the USG profile to account for the correction from finer level
+      if ( ( level < TOP_LEVEL )  &&  ( GREPSgTime[level][Sg_USG] >= 0 ) )
+      {
+         int               Sg_USG    = 1 - Sg;
+         double          Time_USG    = GREPSgTime[level][Sg_USG];
+         Profile_t *Prof_Leaf_USG [] = { DensAve[ level][Sg_USG], VrAve[ level][Sg_USG], PresAve[ level][Sg_USG], EngyAve[ level][Sg_USG] };
+
+         Aux_ComputeProfile( Prof_Leaf_USG,    Center, MaxRadius, MinBinSize, GREP_LOGBIN, GREP_LOGBINRATIO, false, TVar,
+                             4, level, -1,    PATCH_LEAF,    Time_USG );
+      }
+   }
 
 // update the profile from the non-leaf patches at the current level
    Aux_ComputeProfile   ( Prof_NonLeaf, Center, MaxRadius, MinBinSize, GREP_LOGBIN, GREP_LOGBINRATIO, false, TVar,
@@ -242,11 +256,6 @@ void Combine_GREP_Profile( Profile_t *Prof[][2], const int level, const int Sg, 
 
          SetTempIntPara( lv, GREPSg[lv], PrepTime, GREPSgTime[lv][0], GREPSgTime[lv][1],
                          FluIntTime, FluSg, FluSg_IntT, FluWeighting, FluWeighting_IntT );
-
-         if ( FluIntTime  &&  MPI_Rank == 0 )
-            Aux_Message( stderr, "WARNING : cannot determine FluSg "
-                                 "(lv %d, PrepTime %20.14e, SgTime[0] %20.14e, SgTime[1] %20.14e) !!\n",
-                         lv, PrepTime, GREPSgTime[lv][ GREPSg[lv] ], GREPSgTime[lv][ 1-GREPSg[lv] ] );
 
          Profile_t *Prof_Leaf      = Prof[lv][FluSg];
          Profile_t *Prof_Leaf_IntT = ( FluIntTime ) ? Prof[lv][FluSg_IntT] : NULL;

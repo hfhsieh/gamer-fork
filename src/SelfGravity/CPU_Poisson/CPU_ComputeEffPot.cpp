@@ -101,7 +101,7 @@ void CPU_ComputeEffPot( Profile_t *DensAve, Profile_t *EngyAve, Profile_t *VrAve
 //    for debug
       if ( !NIter  &&  !Pass )
       {
-         if ( ( MPI_Rank == 0 )  &&  ( omp_get_thread_num() == 0 ) )
+         if ( MPI_Rank == 0 )
          {
             printf("\n# GREP_CENTER_METHOD: %d\n",                  GREP_CENTER_METHOD);
             printf("# Center              : %.15e\t%.15e\t%.15e\n", DensAve->Center[0], DensAve->Center[1], DensAve->Center[2]);
@@ -172,7 +172,7 @@ void CPU_ComputeEffPot( Profile_t *DensAve, Profile_t *EngyAve, Profile_t *VrAve
 
 
 #ifdef GREP_DEBUG
-   if ( ( MPI_Rank == 0 )  &&  ( omp_get_thread_num() == 0 ) )
+   if ( MPI_Rank == 0 )
    {
       printf("\n# GREP_CENTER_METHOD: %d\n",                  GREP_CENTER_METHOD);
       printf("# Center              : %.15e\t%.15e\t%.15e\n", Phi_eff->Center[0], Phi_eff->Center[1], Phi_eff->Center[2]);
