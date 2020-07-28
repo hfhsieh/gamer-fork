@@ -725,10 +725,6 @@
 #define MAX_STRING         512
 
 
-// patch types
-#  define  PATCH_LEAF      0
-#  define  PATCH_NONLEAF   1
-#  define  PATCH_BOTH      2
 
 
 // ############
