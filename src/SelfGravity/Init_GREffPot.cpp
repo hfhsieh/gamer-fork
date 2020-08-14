@@ -58,55 +58,46 @@ void Init_GREffPot( const int level, const double TimeNew )
 
    else
    {
-//    compare the input TimeNew with the stored time to reduce unnecessary calculations
-      bool FluUpdateTime;
-      int  Sg;
+//    compare the input TimeNew with the stored time to choose the SaveSg
+      int Sg;
 
       if      (  Mis_CompareRealValue( TimeNew, GREPSgTime[level][0], NULL, false )  )
       {
-         FluUpdateTime = false;
-         Sg            = 0;
+         Sg = 0;
       }
 
       else if (  Mis_CompareRealValue( TimeNew, GREPSgTime[level][1], NULL, false )  )
       {
-         FluUpdateTime = false;
-         Sg            = 1;
+         Sg = 1;
       }
 
       else
       {
-         FluUpdateTime = true;
-         Sg            = 1 - GREPSg[level];
+         Sg = 1 - GREPSg[level];
       }
-
-      FluUpdateTime = true;
 
       GREP_LvUpdate         = level;
       GREPSg    [level]     = Sg;
       GREPSgTime[level][Sg] = TimeNew;
 
 
-      if ( FluUpdateTime )
-      {
-//       update the spherical-averaged profile
-         if ( Do_TEMPINT_in_ComputeProfile )
-//          do interpolation in ComputeProfile()
-            Update_GREP_Profile( level, Sg, TimeNew );
-         else
-//          do interpolation in the stored profiles
-            Update_GREP_Profile( level, Sg, -1.0    );
+//    update the spherical-averaged profile
+      if ( Do_TEMPINT_in_ComputeProfile )
+//       do interpolation in ComputeProfile()
+         Update_GREP_Profile( level, Sg, TimeNew );
+      else
+//       do interpolation in the stored profiles
+         Update_GREP_Profile( level, Sg, -1.0    );
 
-//       combine the profile at each level
-         Combine_GREP_Profile( DensAve, level, Sg, TimeNew, true );
-         Combine_GREP_Profile( EngyAve, level, Sg, TimeNew, true );
-         Combine_GREP_Profile( VrAve  , level, Sg, TimeNew, true );
-         Combine_GREP_Profile( PresAve, level, Sg, TimeNew, true );
+//    combine the profile at each level
+      Combine_GREP_Profile( DensAve, level, Sg, TimeNew, true );
+      Combine_GREP_Profile( EngyAve, level, Sg, TimeNew, true );
+      Combine_GREP_Profile( VrAve  , level, Sg, TimeNew, true );
+      Combine_GREP_Profile( PresAve, level, Sg, TimeNew, true );
 
-//       compute the GR effective potential
-         CPU_ComputeEffPot( DensAve[NLEVEL][Sg], EngyAve[NLEVEL][Sg], VrAve[NLEVEL][Sg], PresAve[NLEVEL][Sg],
-                            Phi_eff[ level][Sg] );
-      }
+//    compute the GR effective potential
+      CPU_ComputeEffPot( DensAve[NLEVEL][Sg], EngyAve[NLEVEL][Sg], VrAve[NLEVEL][Sg], PresAve[NLEVEL][Sg],
+                         Phi_eff[ level][Sg] );
 
 //    initialize the auxiliary GPU arrays
 #     ifdef GPU
