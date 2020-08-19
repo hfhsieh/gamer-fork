@@ -97,37 +97,38 @@ void CPU_ComputeEffPot( Profile_t *DensAve, Profile_t *EngyAve, Profile_t *VrAve
          }
       }
 
-
-//    for debug
-      if ( !NIter  &&  !Pass )
-      {
-         if ( MPI_Rank == 0 )
-         {
-            printf("\n# GREP_CENTER_METHOD: %d\n",                  GREP_CENTER_METHOD);
-            printf("# Center              : %.15e\t%.15e\t%.15e\n", DensAve->Center[0], DensAve->Center[1], DensAve->Center[2]);
-            printf("# MaxRadius           : %.15e\n",               DensAve->MaxRadius);
-         //   printf("# MinBinSize          : %.15e\n",               MinBinSize);
-            printf("# LogBin              : %d\n",                  DensAve->LogBin);
-            printf("# LogBinRatio         : %.15e\n",               DensAve->LogBinRatio);
-            printf("# Num of Iteration    : %d\n",                  GREP_MAXITER - NIter);
-            printf("# NBin                : %d\n",                  NBin);
-            printf("# ============================================================\n");
-            printf("#  Bin     NCell     RADIUS       DENS       ENGY         Vr   Pressure    Mass_NW   Mass_TOV  Mass_TOV_old  Error_rel  Gamma_TOV\n");
-            for ( int i=0; i<NBin; i++ )
-               printf("%6d  %8ld  %9.2e  %9.2e  %9.2e  %9.2e  %9.2e  %9.2e  %9.2e     %9.2e  %9.2e  %9.2e\n",
-                      i, DensAve->NCell[i], Radius[i],
-                      DensAve->Data[i], EngyAve->Data[i], VrAve->Data[i], PresAve->Data[i],
-                      Mass_NW[i], Mass_TOV[i], Mass_TOV_USG[i], FABS( Mass_TOV_USG[i] - Mass_TOV[i] ) / Mass_TOV[i], Gamma_TOV[i]);
-         }
-
-         Aux_Error( ERROR_INFO, "Too many iterations in computing effective potential\n" );
-      }
-
-
       if ( Pass )
          break;
       else
          for ( int i=0; i<NBin; i++ )   Mass_TOV_USG[i] = Mass_TOV[i];
+
+
+//    additional information for debug if no convegent solution is found
+      if ( !NIter  &&  !Pass )
+      {
+         if ( MPI_Rank == 0 )
+         {
+            printf("\n============================================================\n");
+            printf("GREP_CENTER_METHOD : %d\n",                   GREP_CENTER_METHOD);
+            printf("Center             : %13.7e %13.7e %13.7e\n", DensAve->Center[0], DensAve->Center[1], DensAve->Center[2]);
+            printf("MaxRadius          : %13.7e\n",               DensAve->MaxRadius);
+            printf("LogBin             : %d\n",                   DensAve->LogBin);
+            printf("LogBinRatio        : %13.7e\n",               DensAve->LogBinRatio);
+            printf("Num of Iterations  : %d\n",                   GREP_MAXITER - NIter);
+            printf("NBin               : %d\n",                   NBin);
+            printf("============================================================\n");
+            printf("%5s %9s %10s %10s %10s %10s %10s %10s %10s %10s %10s %10s\n",
+                   "Bin", "NCell", "Radius", "Dens", "Engy", "Vr", "Pressure",
+                   "Mass_NW", "Mass_TOV", "Mass_TOV_old", "Error_rel", "Gamma_TOV");
+
+            for ( int i=0; i<NBin; i++ )
+               printf("%5d %9ld %10.2e %10.2e %10.2e %10.2e %10.2e %10.2e %10.2e %12.2e %10.2e %10.2e\n",
+                      i, DensAve->NCell[i], Radius[i], DensAve->Data[i], EngyAve->Data[i], VrAve->Data[i], PresAve->Data[i],
+                      Mass_NW[i], Mass_TOV[i], Mass_TOV_USG[i], FABS( Mass_TOV_USG[i] - Mass_TOV[i] ) / Mass_TOV[i], Gamma_TOV[i]);
+
+            Aux_Error( ERROR_INFO, "Too many iterations in computing effective potential\n" );
+         }
+      }
 
    } // while ( NIter-- )
 
@@ -174,19 +175,22 @@ void CPU_ComputeEffPot( Profile_t *DensAve, Profile_t *EngyAve, Profile_t *VrAve
 #ifdef GREP_DEBUG
    if ( MPI_Rank == 0 )
    {
-      printf("\n# GREP_CENTER_METHOD: %d\n",                  GREP_CENTER_METHOD);
-      printf("# Center              : %.15e\t%.15e\t%.15e\n", Phi_eff->Center[0], Phi_eff->Center[1], Phi_eff->Center[2]);
-      printf("# MaxRadius           : %.15e\n",               Phi_eff->MaxRadius);
-      printf("# LogBin              : %d\n",                  Phi_eff->LogBin);
-      printf("# LogBinRatio         : %.15e\n",               Phi_eff->LogBinRatio);
-      printf("# Num of Iteration    : %d\n",                  GREP_MAXITER - NIter);
-      printf("# NBin                : %d\n",                  NBin);
-      printf("# ============================================================\n");
-      printf("#  Bin     NCell     RADIUS       DENS       ENGY         Vr   Pressure    Mass_NW   Mass_TOV  Gamma_TOV    Eff_Pot\n");
+      printf("\n============================================================\n");
+      printf("GREP_CENTER_METHOD : %d\n",                   GREP_CENTER_METHOD);
+      printf("Center             : %13.7e %13.7e %13.7e\n", Phi_eff->Center[0], Phi_eff->Center[1], Phi_eff->Center[2]);
+      printf("MaxRadius          : %13.7e\n",               Phi_eff->MaxRadius);
+      printf("LogBin             : %d\n",                   Phi_eff->LogBin);
+      printf("LogBinRatio        : %13.7e\n",               Phi_eff->LogBinRatio);
+      printf("Num of Iterations  : %d\n",                   GREP_MAXITER - NIter);
+      printf("NBin               : %d\n",                   NBin);
+      printf("============================================================\n");
+      printf("%5s %9s %10s %10s %10s %10s %10s %10s %10s %10s %10s\n",
+             "Bin", "NCell", "Radius", "Dens", "Engy", "Vr", "Pressure",
+             "Mass_NW", "Mass_TOV", "Gamma_TOV", "Eff_Pot");
+
       for ( int i=0; i<NBin; i++ )
-         printf("%6d  %8ld  %9.2e  %9.2e  %9.2e  %9.2e  %9.2e  %9.2e  %9.2e  %9.2e  %9.2e\n",
-                i, DensAve->NCell[i], Radius[i],
-                DensAve->Data[i], EngyAve->Data[i], VrAve->Data[i], PresAve->Data[i],
+         printf("%5d %9ld %10.2e %10.2e %10.2e %10.2e %10.2e %10.2e %10.2e %10.2e %10.2e\n",
+                i, DensAve->NCell[i], Radius[i], DensAve->Data[i], EngyAve->Data[i], VrAve->Data[i], PresAve->Data[i],
                 Mass_NW[i], Mass_TOV[i], Gamma_TOV[i], Phi_eff->Data[i]);
    }
 #endif

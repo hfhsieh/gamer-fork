@@ -4,16 +4,20 @@
 
 // problem-specific global variables
 // =======================================================================================
+// Parameters for the toroidal B field
+#ifdef MHD
 static double  Bfield_Ab;                       // magnetic field strength                        [1e15]
 static double  Bfield_np;                       // dependence on the density                      [0.0]
+#endif
 
+// Parameters for GW emissions output
 static int     GW_OUTPUT_OPT;                   // output the GW signal (0=off)                   [1]
 static double  GW_OUTPUT_DT;                    // time duration between outputs of GW signal     [UNIT_T]
 
 // Parameters for initial condition
 static double *NeutronStar_Prof = NULL;         // radial progenitor model
-static char    NeutronStar_ICFile[MAX_STRING];  // Filename for initial condition
 static int     NeutronStar_NBin;                // number of radial bins in the progenitor model
+static char    NeutronStar_ICFile[MAX_STRING];  // Filename for initial condition
 // =======================================================================================
 
 
@@ -22,12 +26,12 @@ static double Mis_InterpolateFromTable_Ext( Profile_t *Phi, const double r );
 
 static void LoadICTable();
 static void Record_MigrationTest();
+static void Record_CentralDens();
 static void Record_GWSignal_1st();
 static void Record_GWSignal_2nd();
 static void Record_GWSignal_Part2nd_Opti();
 static void Record_GWSignal_Full2nd();
 static void Record_GWSignal_Full2nd_Opti();
-static void Record_CentralDens();
 
 static void Record_GWSignal_checkyz();
 
@@ -434,6 +438,7 @@ void LoadICTable()
 void Record_MigrationTest()
 {
 
+// output the maximum density near the domain center every timestep
    Record_CentralDens();
 
 // GW Signal
@@ -466,15 +471,15 @@ void Record_MigrationTest()
 
 //-------------------------------------------------------------------------------------------------------
 // Function    :  Record_CentralDens
-// Description :  Record the central density
+// Description :  Record the maximum central density
 //-------------------------------------------------------------------------------------------------------
 void Record_CentralDens()
 {
 
    const char   filename_central_dens[] = "Record__CentralDens";
    const double BoxCenter[3]            = { 0.5*amr->BoxSize[0], 0.5*amr->BoxSize[1], 0.5*amr->BoxSize[2] };
-// make sure that the central region is always resolved by the finest level
-   const double r_max2                  = SQR( amr->dh[NLEVEL - 1] );
+// the farthest distance of cells to be considered
+   const double r_max2                  = SQR( amr->dh[TOP_LEVEL] );
 
 // allocate memory for per-thread arrays
 #  ifdef OPENMP
@@ -519,7 +524,7 @@ void Record_CentralDens()
 
                if ( r2 < r_max2 )
                {
-                  const double dens = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[DENS][k][j][i] * UNIT_D;
+                  const double dens = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[DENS][k][j][i];
 
                   if ( dens > OMP_DataCoord[TID][0] )
                   {
@@ -540,9 +545,7 @@ void Record_CentralDens()
    for (int TID=0; TID<NT; TID++)
    {
       if ( OMP_DataCoord[TID][0] > DataCoord[0] )
-      {
          for (int b=0; b<4; b++)   DataCoord[b] = OMP_DataCoord[TID][b];
-      }
    }
 
 // free per-thread arrays
@@ -571,18 +574,19 @@ void Record_CentralDens()
 
       static bool FirstTime = true;
 
+//    output file header
       if ( FirstTime )
       {
-//       write header before the first output
          if ( Aux_CheckFileExist(filename_central_dens) )
          {
              Aux_Message( stderr, "WARNING : file \"%s\" already exists !!\n", filename_central_dens );
          }
+
          else
          {
              FILE *file_max_dens = fopen( filename_central_dens, "w" );
-             fprintf( file_max_dens, "#%19s %14s %16s %16s %16s %16s\n",
-                                     "Time", "Step", "Dens", "Posx", "Posy", "Posz" );
+             fprintf( file_max_dens, "#%19s %12s %16s %16s %16s %16s\n",
+                                     "Time", "Step", "Dens", "PosX", "PosY", "PosZ" );
              fclose( file_max_dens );
          }
 
@@ -590,9 +594,8 @@ void Record_CentralDens()
       }
 
       FILE *file_max_dens = fopen( filename_central_dens, "a" );
-      fprintf( file_max_dens,
-               "%20.14e   %10ld   %14.7e   %14.7e   %14.7e   %14.7e\n",
-              Time[0], Step, DataCoord[0], DataCoord[1], DataCoord[2], DataCoord[3] );
+      fprintf( file_max_dens, "%20.14e %12ld %16.7e %16.7e %16.7e %16.7e\n",
+               Time[0]*UNIT_T, Step, DataCoord[0]*UNIT_D, DataCoord[1]*UNIT_L, DataCoord[2]*UNIT_L, DataCoord[3]*UNIT_L );
       fclose( file_max_dens );
 
    } // if ( MPI_Rank == 0 )
