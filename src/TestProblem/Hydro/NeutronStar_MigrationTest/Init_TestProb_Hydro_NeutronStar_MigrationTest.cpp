@@ -6,13 +6,13 @@
 // =======================================================================================
 // Parameters for the toroidal B field
 #ifdef MHD
-static double  Bfield_Ab;                       // magnetic field strength                        [1e15]
-static double  Bfield_np;                       // dependence on the density                      [0.0]
+static double  Bfield_Ab;                       // magnetic field strength                            [1e15]
+static double  Bfield_np;                       // dependence on the density                          [0.0]
 #endif
 
 // Parameters for GW emissions output
-static int     GW_OUTPUT_OPT;                   // output the GW signal (0=off)                   [1]
-static double  GW_OUTPUT_DT;                    // time duration between outputs of GW signal     [UNIT_T]
+static int     GW_OUTPUT_OPT;                   // output GW signal (0=off)                           [0]
+static double  GW_OUTPUT_DT;                    // output GW signals every GW_OUTPUT_DT time interval [0.0]
 
 // Parameters for initial condition
 static double *NeutronStar_Prof = NULL;         // radial progenitor model
@@ -20,21 +20,12 @@ static int     NeutronStar_NBin;                // number of radial bins in the 
 static char    NeutronStar_ICFile[MAX_STRING];  // Filename for initial condition
 // =======================================================================================
 
-
 static double Mis_InterpolateFromTable_Ext( Profile_t *Phi, const double r );
-
-
-static void LoadICTable();
-static void Record_MigrationTest();
-static void Record_CentralDens();
-static void Record_GWSignal_1st();
-static void Record_GWSignal_2nd();
-static void Record_GWSignal_Part2nd_Opti();
-static void Record_GWSignal_Full2nd();
-static void Record_GWSignal_Full2nd_Opti();
-
-static void Record_GWSignal_checkyz();
-
+static void   LoadICTable();
+static void   Record_MigrationTest();
+static void   Record_CentralDens();
+static void   Record_GWSignal_1st();
+static void   Record_GWSignal_2nd();
 
 extern int        GREP_LvUpdate;
 extern int        GREPSg  [NLEVEL];
@@ -135,7 +126,7 @@ void SetParameter()
 //   ReadPara->Add( "var_int",           &var_int,               2,             0,                5                 );
 //   ReadPara->Add( "var_str",            var_str,               Useless_str,   Useless_str,      Useless_str       );
    ReadPara->Add( "NeutronStar_ICFile",   NeutronStar_ICFile,    Useless_str,   Useless_str,      Useless_str       );
-   ReadPara->Add( "GW_OUTPUT_OPT",       &GW_OUTPUT_OPT,         1,             0,                NoMax_int         );
+   ReadPara->Add( "GW_OUTPUT_OPT",       &GW_OUTPUT_OPT,         0,             0,                NoMax_int         );
    ReadPara->Add( "GW_OUTPUT_DT",        &GW_OUTPUT_DT,          0.0,           0.0,              NoMax_double      );
 #  ifdef MHD
    ReadPara->Add( "Bfield_Ab",           &Bfield_Ab,             1.0e15,        0.0,              NoMax_double      );
@@ -438,32 +429,18 @@ void LoadICTable()
 void Record_MigrationTest()
 {
 
-// output the maximum density near the domain center every timestep
+// the maximum density near the domain center
    Record_CentralDens();
 
 // GW Signal
-   bool OutputData = ( GW_OUTPUT_OPT ) ? true : false;
-
-   if ( OutputData  &&  GW_OUTPUT_DT )
+   if ( GW_OUTPUT_OPT )
    {
-      double GW_DumpTime = ( int(Time[0]/GW_OUTPUT_DT) )*GW_OUTPUT_DT;
-      if ( fabs( (Time[0]-GW_DumpTime)/Time[0] ) > 1.0e-8 )   OutputData = false;
+      double GW_DumpTime = ( GW_OUTPUT_DT > 0.0 ) ? int( Time[0]/GW_OUTPUT_DT )*GW_OUTPUT_DT : Time[0];
 
-//      printf("Time = %.7e,  GW_DumpTime = %.7e,  diff = %.7e,  OutputData = %d\n",
-//             Time[0], GW_DumpTime, fabs( (Time[0]-GW_DumpTime)/Time[0] ), OutputData);
+//    output data when the elapsed time ~ GW_OUTPUT_DT or dt > GW_OUTPUT_DT
+      if ( Time[0] == 0.0  ||  fabs( (Time[0]-GW_DumpTime)/Time[0] ) <= 1.0e-8  ||  dTime_Base >= GW_OUTPUT_DT )
+         Record_GWSignal_2nd();
    }
-
-   if ( OutputData )
-   {
-//      Record_GWSignal_1st();
-//      Record_GWSignal_2nd();
-//      Record_GWSignal_Full2nd();
-      Record_GWSignal_Full2nd_Opti();
-//      Record_GWSignal_Part2nd_Opti();
-
-//      Record_GWSignal_checkyz();
-   }
-
 
 } // FUNCTION : Record_MigrationTest()
 
@@ -585,7 +562,7 @@ void Record_CentralDens()
          else
          {
              FILE *file_max_dens = fopen( filename_central_dens, "w" );
-             fprintf( file_max_dens, "#%19s %12s %16s %16s %16s %16s\n",
+             fprintf( file_max_dens, "#%14s %12s %16s %16s %16s %16s\n",
                                      "Time", "Step", "Dens", "PosX", "PosY", "PosZ" );
              fclose( file_max_dens );
          }
@@ -594,7 +571,7 @@ void Record_CentralDens()
       }
 
       FILE *file_max_dens = fopen( filename_central_dens, "a" );
-      fprintf( file_max_dens, "%20.14e %12ld %16.7e %16.7e %16.7e %16.7e\n",
+      fprintf( file_max_dens, "%15.7e %12ld %16.7e %16.7e %16.7e %16.7e\n",
                Time[0]*UNIT_T, Step, DataCoord[0]*UNIT_D, DataCoord[1]*UNIT_L, DataCoord[2]*UNIT_L, DataCoord[3]*UNIT_L );
       fclose( file_max_dens );
 
@@ -604,10 +581,35 @@ void Record_CentralDens()
 
 
 
+//-------------------------------------------------------------------------------------------------------
+// Function    :  Mis_InterpolateFromTable_Ext
+// Description :  Extended Mis_InterpolateFromTable() for extrapolation
+//-------------------------------------------------------------------------------------------------------
+static double Mis_InterpolateFromTable_Ext( Profile_t *Phi, const double r )
+{
+
+   const int    NBin = Phi->NBin;
+   const double rmin = Phi->Radius[0];
+   const double rmax = Phi->Radius[NBin - 1];
+
+   double Phi_interp;
+
+   if ( r < rmin )
+      Phi_interp = Phi->Data[0];
+   else if ( r < rmax )
+      Phi_interp = Mis_InterpolateFromTable( NBin, Phi->Radius, Phi->Data, r );
+   else
+      Phi_interp = Phi->Data[NBin-1];
+
+   return Phi_interp;
+
+}
+
+
 
 //-------------------------------------------------------------------------------------------------------
 // Function    :  Record_GWSignal_1st
-// Description :  Record the first-order derivative of mass quadrupole moments
+// Description :  Record the first-order time derivative of mass quadrupole moments
 //                see Nakamura & Oohara (1989), Oohara et al. (1997)
 //-------------------------------------------------------------------------------------------------------
 void Record_GWSignal_1st()
@@ -627,7 +629,7 @@ void Record_GWSignal_1st()
    const int NData = 6;
 
    double QuadMom_1st[NData] = { 0.0 };
-   double **OMP_QuadMom_1st=NULL;
+   double **OMP_QuadMom_1st  = NULL;
    Aux_AllocateArray2D( OMP_QuadMom_1st, NT, NData );
 
 
@@ -673,14 +675,10 @@ void Record_GWSignal_1st()
                OMP_QuadMom_1st[TID][4] += dv * (       dy * momz +               dz * momy );  // yz
                OMP_QuadMom_1st[TID][5] += dv * ( 2.0 * dz * momz - (2.0 / 3.0) * trace     );  // zz
 
-//               if ( ( MPI_Rank == 0 )  &&  ( TID == 0 ) )
-//                  printf("1st:  dv = %.2e  dx = %.2e  momx = %.2e  trace = %.2e\n", dv, dx, momx, trace);
-
             }}} // i,j,k
          } // for (int PID=0; PID<amr->NPatchComma[lv][1]; PID++)
       } // for (int lv=0; lv<NLEVEL; lv++)
    } // OpenMP parallel region
-
 
 
 // sum over all OpenMP threads
@@ -691,7 +689,6 @@ void Record_GWSignal_1st()
 
 // free per-thread arrays
    Aux_DeallocateArray2D( OMP_QuadMom_1st );
-
 
 
 // collect data from all ranks (in-place reduction)
@@ -714,9 +711,9 @@ void Record_GWSignal_1st()
 
       static bool FirstTime = true;
 
+//    output file header
       if ( FirstTime )
       {
-//       write header before the first output
          if ( Aux_CheckFileExist(filename_QuadMom_1st) )
          {
              Aux_Message( stderr, "WARNING : file \"%s\" already exists !!\n", filename_QuadMom_1st );
@@ -724,7 +721,7 @@ void Record_GWSignal_1st()
          else
          {
              FILE *file_QuadMom_1st = fopen( filename_QuadMom_1st, "w" );
-             fprintf( file_QuadMom_1st, "#%19s %12s %16s %16s %16s %16s %16s %16s\n",
+             fprintf( file_QuadMom_1st, "#%14s %7s %16s %16s %16s %16s %16s %16s\n",
                                         "Time", "Step", "xx", "xy", "xz", "yy", "yz", "zz" );
              fclose( file_QuadMom_1st );
          }
@@ -734,9 +731,9 @@ void Record_GWSignal_1st()
 
       FILE *file_QuadMom_1st = fopen( filename_QuadMom_1st, "a" );
 
-                                    fprintf( file_QuadMom_1st, "%20.14e %12ld", Time[0] * UNIT_T, Step  );
-      for (int b=0; b<NData; b++)   fprintf( file_QuadMom_1st, "%17.7e",        QuadMom_1st[b] );
-                                    fprintf( file_QuadMom_1st, "\n"                            );
+                                    fprintf( file_QuadMom_1st, "%15.7e %7ld", Time[0] * UNIT_T, Step );
+      for (int b=0; b<NData; b++)   fprintf( file_QuadMom_1st, "%17.7e", QuadMom_1st[b] );
+                                    fprintf( file_QuadMom_1st, "\n" );
 
       fclose( file_QuadMom_1st );
 
@@ -747,35 +744,9 @@ void Record_GWSignal_1st()
 
 
 //-------------------------------------------------------------------------------------------------------
-// Function    :  Mis_InterpolateFromTable_Ext
-// Description :  Extended Mis_InterpolateFromTable() for extrapolation
-//-------------------------------------------------------------------------------------------------------
-static double Mis_InterpolateFromTable_Ext( Profile_t *Phi, const double r )
-{
-
-   const int    NBin = Phi->NBin;
-   const double rmin = Phi->Radius[0];
-   const double rmax = Phi->Radius[NBin - 1];
-
-   double Phi_interp;
-
-   if ( r < rmin )
-      Phi_interp = Phi->Data[0];
-   else if ( r < rmax )
-      Phi_interp = Mis_InterpolateFromTable( NBin, Phi->Radius, Phi->Data, r );
-   else
-      Phi_interp = Phi->Data[NBin-1];
-
-   return Phi_interp;
-
-}
-
-
-
-//-------------------------------------------------------------------------------------------------------
 // Function    :  Record_GWSignal_2nd
-// Description :  Record the second-order derivative of mass quadrupole moments
-//                see Nakamura & Oohara (1989), Oohara et al. (1997), eq. (6) in Andresen et al. (2017)
+// Description :  Record the second-order time derivative of mass quadrupole moments
+//                see Nakamura & Oohara (1989), Oohara et al. (1997)
 //-------------------------------------------------------------------------------------------------------
 void Record_GWSignal_2nd()
 {
@@ -784,41 +755,6 @@ void Record_GWSignal_2nd()
 
    const char   filename_QuadMom_2nd[ ] = "Record__QuadMom_2nd";
    const double BoxCenter           [3] = { 0.5*amr->BoxSize[0], 0.5*amr->BoxSize[1], 0.5*amr->BoxSize[2] };
-         double Center              [3] = { 0.0 };
-   const long   TVar                [ ] = { _DENS, _EINT_DER, _VELR, _PRES };
-         double MaxRadius, MinBinSize;
-   Profile_t *Phi_eff, *ProfAve[4];
-
-
-// compute the GR effective potential
-   switch ( GREP_CENTER_METHOD )
-   {
-      case 1:   for (int i=0; i<3; i++)   Center[i] = amr->BoxCenter[i];
-                break;
-      default:  Aux_Error( ERROR_INFO, "incorrect parameter %s = %d !!\n", "GREP_CENTER_METHOD", GREP_CENTER_METHOD );
-   }
-
-//    Defaults to the distance between the center and the farthest box vertex
-   MaxRadius  = ( GREP_MAXRADIUS > 0.0 )  ? GREP_MAXRADIUS
-                                          : SQRT( SQR( MAX( amr->BoxSize[0] - Center[0], Center[0] ) )
-                                          +       SQR( MAX( amr->BoxSize[1] - Center[1], Center[1] ) )
-                                          +       SQR( MAX( amr->BoxSize[2] - Center[2], Center[2] ) ));
-
-   MinBinSize = ( GREP_MINBINSIZE > 0.0 ) ? GREP_MINBINSIZE
-                                          : amr->dh[MAX_LEVEL];
-
-                                         Phi_eff        = new Profile_t();
-   for (int NProf=0; NProf<4; NProf++)   ProfAve[NProf] = new Profile_t();
-
-   Aux_ComputeProfile( ProfAve, Center, MaxRadius, MinBinSize, GREP_LOGBIN, GREP_LOGBINRATIO,
-                       true, TVar, 4, -1, -1, PATCH_LEAF, amr->FluSgTime[0][ amr->FluSg[0] ] );
-   CPU_ComputeEffPot ( ProfAve[0], ProfAve[1], ProfAve[2], ProfAve[3], Phi_eff );
-
-
-   const int    NBin = Phi_eff->NBin;
-   const double rmin = Phi_eff->Radius[0];
-   const double rmax = Phi_eff->Radius[NBin-1];
-
 
 // allocate memory for per-thread arrays
 #  ifdef OPENMP
@@ -828,599 +764,13 @@ void Record_GWSignal_2nd()
 #  endif
 
 // in order of xx, xy, xz, yy, yz, zz
-   const int NData = 6;
+   const int NData   = 6;
+   const int ArrayID = 0;
+   const int NPG_Max = POT_GPU_NPGROUP;
 
    double QuadMom_2nd[NData] = { 0.0 };
-   double **OMP_QuadMom_2nd=NULL;
+   double **OMP_QuadMom_2nd  = NULL;
    Aux_AllocateArray2D( OMP_QuadMom_2nd, NT, NData );
-
-
-#  pragma omp parallel
-   {
-#     ifdef OPENMP
-      const int TID = omp_get_thread_num();
-#     else
-      const int TID = 0;
-#     endif
-
-//    initialize arrays
-      for (int b=0; b<NData; b++)   OMP_QuadMom_2nd[TID][b] = 0.0;
-
-      for (int lv=0; lv<NLEVEL; lv++)
-      {
-         const double dh = amr->dh[lv];
-         const double dv = CUBE( dh );
-
-#        pragma omp for schedule( runtime )
-         for (int PID=0; PID<amr->NPatchComma[lv][1]; PID++)
-         {
-            if ( amr->patch[0][lv][PID]->son != -1 )  continue;
-
-            for (int k=0; k<PS1; k++)  {  const double z = amr->patch[0][lv][PID]->EdgeL[2] + (k+0.5)*dh;
-            for (int j=0; j<PS1; j++)  {  const double y = amr->patch[0][lv][PID]->EdgeL[1] + (j+0.5)*dh;
-            for (int i=0; i<PS1; i++)  {  const double x = amr->patch[0][lv][PID]->EdgeL[0] + (i+0.5)*dh;
-
-               const double dx = x - BoxCenter[0];
-               const double dy = y - BoxCenter[1];
-               const double dz = z - BoxCenter[2];
-
-               const double dens  = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[DENS][k][j][i];
-               const double momx  = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[MOMX][k][j][i];
-               const double momy  = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[MOMY][k][j][i];
-               const double momz  = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[MOMZ][k][j][i];
-               const double _dens = 1.0 / dens;
-
-               const double r = SQRT( SQR(dx) + SQR(dy) + SQR(dz) );
-               const double Phi_eff_r = Mis_InterpolateFromTable_Ext( Phi_eff, r );
-
-               double dPhi_dx, dPhi_dy, dPhi_dz;
-
-//             dPhi_dx
-               if ( i == 0 )
-               {
-                  const double rpx = SQRT( SQR(dx + dh) + SQR(dy) + SQR(dz) );
-                  const double Phi_eff_rpx = Mis_InterpolateFromTable_Ext( Phi_eff, rpx );
-
-                  dPhi_dx = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i+1] + Phi_eff_rpx
-                            - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   - Phi_eff_r   ) / dh;
-               }
-
-               else if ( i < PS1 -1 )
-               {
-                  const double rpx = SQRT( SQR(dx + dh) + SQR(dy) + SQR(dz) );
-                  const double rmx = SQRT( SQR(dx - dh) + SQR(dy) + SQR(dz) );
-                  const double Phi_eff_rpx = Mis_InterpolateFromTable_Ext( Phi_eff, rpx );
-                  const double Phi_eff_rmx = Mis_InterpolateFromTable_Ext( Phi_eff, rmx );
-
-                  dPhi_dx = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i+1] + Phi_eff_rpx
-                            - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i-1] - Phi_eff_rmx ) / (2.0 * dh);
-               }
-
-               else
-               {
-                  const double rmx = SQRT( SQR(dx - dh) + SQR(dy) + SQR(dz) );
-                  const double Phi_eff_rmx = Mis_InterpolateFromTable_Ext( Phi_eff, rmx );
-
-                  dPhi_dx = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   + Phi_eff_r
-                            - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i-1] - Phi_eff_rmx  ) / dh;
-               }
-
-//             dPhi_dy
-               if ( j == 0 )
-               {
-                  const double rpy = SQRT( SQR(dx) + SQR(dy + dh) + SQR(dz) );
-                  const double Phi_eff_rpy = Mis_InterpolateFromTable_Ext( Phi_eff, rpy );
-
-                  dPhi_dy = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j+1][i] + Phi_eff_rpy
-                            - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   - Phi_eff_r   ) / dh;
-               }
-               else if ( j < PS1 -1 )
-               {
-                  const double rpy = SQRT( SQR(dx) + SQR(dy + dh) + SQR(dz) );
-                  const double rmy = SQRT( SQR(dx) + SQR(dy - dh) + SQR(dz) );
-                  const double Phi_eff_rpy = Mis_InterpolateFromTable_Ext( Phi_eff, rpy );
-                  const double Phi_eff_rmy = Mis_InterpolateFromTable_Ext( Phi_eff, rmy );
-
-                  dPhi_dy = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j+1][i] + Phi_eff_rpy
-                            - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j-1][i] - Phi_eff_rmy ) / (2.0 * dh);
-               }
-               else
-               {
-                  const double rmy = SQRT( SQR(dx) + SQR(dy - dh) + SQR(dz) );
-                  const double Phi_eff_rmy = Mis_InterpolateFromTable_Ext( Phi_eff, rmy );
-
-                  dPhi_dy = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   + Phi_eff_r
-                            - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j-1][i] - Phi_eff_rmy  ) / dh;
-               }
-
-//             dPhi_dz
-               if ( k == 0 )
-               {
-                  const double rpz = SQRT( SQR(dx) + SQR(dy) + SQR(dz + dh) );
-                  const double Phi_eff_rpz = Mis_InterpolateFromTable_Ext( Phi_eff, rpz );
-
-                  dPhi_dz = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k+1][j][i] + Phi_eff_rpz
-                            - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   - Phi_eff_r   ) / dh;
-               }
-               else if ( k < PS1 -1 )
-               {
-                  const double rpz = SQRT( SQR(dx) + SQR(dy) + SQR(dz + dh) );
-                  const double rmz = SQRT( SQR(dx) + SQR(dy) + SQR(dz - dh) );
-                  const double Phi_eff_rpz = Mis_InterpolateFromTable_Ext( Phi_eff, rpz );
-                  const double Phi_eff_rmz = Mis_InterpolateFromTable_Ext( Phi_eff, rmz );
-
-                  dPhi_dz = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k+1][j][i] + Phi_eff_rpz
-                            - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k-1][j][i] - Phi_eff_rmz ) / (2.0 * dh);
-               }
-               else
-               {
-                  const double rmz = SQRT( SQR(dx) + SQR(dy) + SQR(dz - dh) );
-                  const double Phi_eff_rmz = Mis_InterpolateFromTable_Ext( Phi_eff, rmz );
-
-                  dPhi_dz = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   + Phi_eff_r
-                            - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k-1][j][i] - Phi_eff_rmz  ) / dh;
-               }
-
-               const double trace = _dens * ( SQR(momx) + SQR(momy) + SQR(momz) )
-                                  -  dens * ( dx * dPhi_dx + dy * dPhi_dy + dz * dPhi_dz );
-
-               OMP_QuadMom_2nd[TID][0] += dv * ( 2.0 * _dens * momx * momx - (2.0 / 3.0) * trace
-                                               - 2.0 *  dens * dx * dPhi_dx                      );  // xx
-               OMP_QuadMom_2nd[TID][1] += dv * ( 2.0 * _dens * momx * momy
-                                               -        dens * ( dx * dPhi_dy + dy * dPhi_dx)    );  // xy
-               OMP_QuadMom_2nd[TID][2] += dv * ( 2.0 * _dens * momx * momz
-                                               -        dens * ( dx * dPhi_dz + dz * dPhi_dx)    );  // xz
-               OMP_QuadMom_2nd[TID][3] += dv * ( 2.0 * _dens * momy * momy - (2.0 / 3.0) * trace
-                                               - 2.0 * dens * dy * dPhi_dy                      );  // yy
-               OMP_QuadMom_2nd[TID][4] += dv * ( 2.0 * _dens * momy * momz
-                                               -        dens * ( dy * dPhi_dz + dz * dPhi_dy)    );  // yz
-               OMP_QuadMom_2nd[TID][5] += dv * ( 2.0 * _dens * momz * momz - (2.0 / 3.0) * trace
-                                               - 2.0 *  dens * dz * dPhi_dz                      );  // zz
-
-            }}} // i,j,k
-         } // for (int PID=0; PID<amr->NPatchComma[lv][1]; PID++)
-      } // for (int lv=0; lv<NLEVEL; lv++)
-   } // OpenMP parallel region
-
-
-
-// sum over all OpenMP threads
-   for (int b=0; b<NData; b++) {
-   for (int t=0; t<NT; t++)    {
-      QuadMom_2nd[b] += OMP_QuadMom_2nd[t][b];
-   }}
-
-// free per-thread arrays
-   Aux_DeallocateArray2D( OMP_QuadMom_2nd );
-
-
-
-// collect data from all ranks (in-place reduction)
-#  ifndef SERIAL
-   if ( MPI_Rank == 0 )   MPI_Reduce( MPI_IN_PLACE, QuadMom_2nd, NData, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD );
-   else                   MPI_Reduce( QuadMom_2nd,  NULL,        NData, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD );
-#  endif // ifndef SERIAL
-
-
-// multiply the coefficient and unit
-   const double UNIT_QuadMom_2nd = UNIT_M * UNIT_V * UNIT_V;
-   const double coe = 2.0 * Const_NewtonG / pow( Const_c, 4.0 );
-
-   for (int b=0; b<NData; b++)   QuadMom_2nd[b] *= coe * UNIT_QuadMom_2nd;
-
-
-// output to file
-   if ( MPI_Rank == 0 )
-   {
-
-      static bool FirstTime = true;
-
-      if ( FirstTime )
-      {
-//       write header before the first output
-         if ( Aux_CheckFileExist(filename_QuadMom_2nd) )
-         {
-             Aux_Message( stderr, "WARNING : file \"%s\" already exists !!\n", filename_QuadMom_2nd );
-         }
-         else
-         {
-             FILE *file_QuadMom_2nd = fopen( filename_QuadMom_2nd, "w" );
-             fprintf( file_QuadMom_2nd, "#%19s %12s %16s %16s %16s %16s %16s %16s\n",
-                                        "Time", "Step", "xx", "xy", "xz", "yy", "yz", "zz" );
-             fclose( file_QuadMom_2nd );
-         }
-
-         FirstTime = false;
-      }
-
-      FILE *file_QuadMom_2nd = fopen( filename_QuadMom_2nd, "a" );
-
-                                    fprintf( file_QuadMom_2nd, "%20.14e %12ld", Time[0] * UNIT_T, Step );
-      for (int b=0; b<NData; b++)   fprintf( file_QuadMom_2nd, "%17.7e",        QuadMom_2nd[b]         );
-                                    fprintf( file_QuadMom_2nd, "\n"                                    );
-
-      fclose( file_QuadMom_2nd );
-
-   } // if ( MPI_Rank == 0 )
-
-
-// free memory
-                                         Phi_eff       ->FreeMemory();
-   for (int NProf=0; NProf<4; NProf++)   ProfAve[NProf]->FreeMemory();
-
-#  endif // if ( defined GRAVITY  &&  defined GREP )
-
-} // FUNCTION : Record_GWSignal_2nd()
-
-
-
-//-------------------------------------------------------------------------------------------------------
-// Function    :  Record_GWSignal_Full2nd
-// Description :  Record the second-order derivative of mass quadrupole moments
-//                tentative experiment
-//-------------------------------------------------------------------------------------------------------
-void Record_GWSignal_Full2nd()
-{
-
-#  if ( defined GRAVITY  &&  defined GREP )
-
-   const char   filename_QuadMom_2nd[ ] = "Record__QuadMom_2nd";
-   const double BoxCenter           [3] = { 0.5*amr->BoxSize[0], 0.5*amr->BoxSize[1], 0.5*amr->BoxSize[2] };
-         double Center              [3] = { 0.0 };
-   const long   TVar                [ ] = { _DENS, _EINT_DER, _VELR, _PRES };
-         double MaxRadius, MinBinSize;
-   Profile_t *Phi_eff, *ProfAve[4];
-
-
-// compute the GR effective potential
-   switch ( GREP_CENTER_METHOD )
-   {
-      case 1:   for (int i=0; i<3; i++)   Center[i] = amr->BoxCenter[i];
-                break;
-      default:  Aux_Error( ERROR_INFO, "incorrect parameter %s = %d !!\n", "GREP_CENTER_METHOD", GREP_CENTER_METHOD );
-   }
-
-//    Defaults to the distance between the center and the farthest box vertex
-   MaxRadius  = ( GREP_MAXRADIUS > 0.0 )  ? GREP_MAXRADIUS
-                                          : SQRT( SQR( MAX( amr->BoxSize[0] - Center[0], Center[0] ) )
-                                          +       SQR( MAX( amr->BoxSize[1] - Center[1], Center[1] ) )
-                                          +       SQR( MAX( amr->BoxSize[2] - Center[2], Center[2] ) ));
-
-   MinBinSize = ( GREP_MINBINSIZE > 0.0 ) ? GREP_MINBINSIZE
-                                          : amr->dh[MAX_LEVEL];
-
-                                         Phi_eff        = new Profile_t();
-   for (int NProf=0; NProf<4; NProf++)   ProfAve[NProf] = new Profile_t();
-
-   Aux_ComputeProfile( ProfAve, Center, MaxRadius, MinBinSize, GREP_LOGBIN, GREP_LOGBINRATIO,
-                       true, TVar, 4, -1, -1, PATCH_LEAF, amr->FluSgTime[0][ amr->FluSg[0] ] );
-   CPU_ComputeEffPot ( ProfAve[0], ProfAve[1], ProfAve[2], ProfAve[3], Phi_eff );
-
-
-   const int    NBin = Phi_eff->NBin;
-   const double rmin = Phi_eff->Radius[0];
-   const double rmax = Phi_eff->Radius[NBin-1];
-
-
-// allocate memory for per-thread arrays
-#  ifdef OPENMP
-   const int NT = OMP_NTHREAD;   // number of OpenMP threads
-#  else
-   const int NT = 1;
-#  endif
-
-// in order of xx, xy, xz, yy, yz, zz
-   const int NData = 6;
-   int ArrayID = 0;
-   int NPG = 1;
-
-   double QuadMom_2nd[NData] = { 0.0 };
-   double **OMP_QuadMom_2nd=NULL;
-   Aux_AllocateArray2D( OMP_QuadMom_2nd, NT, NData );
-
-
-#  pragma omp parallel
-   {
-#     ifdef OPENMP
-      const int TID = omp_get_thread_num();
-#     else
-      const int TID = 0;
-#     endif
-
-//    initialize arrays
-      for (int b=0; b<NData; b++)   OMP_QuadMom_2nd[TID][b] = 0.0;
-
-      for (int lv=0; lv<NLEVEL; lv++)
-      {
-         const double dh = amr->dh[lv];
-         const double dv = CUBE( dh );
-//         const double TimeNew = ( Time[lv] == 0.0 )? 0 : 1;
-         const double TimeNew = Time[lv];
-//            const double TimeNew = 0;  // Sg = 0 : Store both data and relation (father,son.sibling,corner,flag,flux)
-
-//         printf("lv = %d, Time = %.6e, TimeNew = %.6e\n", lv, Time[lv], TimeNew);
-
-         const int  NTotal = amr->NPatchComma[lv][1];
-         const int factor = 8;
-         const int  NTotal_List = NTotal / factor;
-         int *PID0_List = new int [NTotal_List];
-         for (int t=0; t<NTotal_List; t++)  PID0_List[t] = factor*t;
-
-         for (int PID0=0; PID0<NTotal_List; PID0++)
-         {
-            Prepare_PatchData( lv, TimeNew, &h_Pot_Array_P_Out[ArrayID][0][0][0][0], NULL,
-//                               GRA_GHOST_SIZE, NPG, PID0_List, _POTE, _NONE,
-                               GRA_GHOST_SIZE, NPG, PID0_List+PID0, _POTE, _NONE,
-                               OPT__GRA_INT_SCHEME, INT_NONE, UNIT_PATCH, (GRA_GHOST_SIZE==0)?NSIDE_00:NSIDE_06, false,
-                               OPT__BC_FLU, OPT__BC_POT, -1.0, -1.0, false );
-
-#        pragma omp for schedule( runtime )
-         for (int PID_IDX=0; PID_IDX<factor; PID_IDX++)
-         {
-            int PID = PID0*factor + PID_IDX;
-
-            if ( amr->patch[0][lv][PID]->son != -1 )  continue;
-
-            // prepare the data including the ghost zone
-//            printf("lv = %d,  PID  = %d\n", lv, PID);
-
-//            for (int foo=0; foo<8; foo++)
-//               printf("%d-th prepared patch = %.2e\n", foo, h_Pot_Array_P_Out[ArrayID][foo][0][0][0]);
-
-
-            for (int k=0; k<PS1; k++)  {  const double z = amr->patch[0][lv][PID]->EdgeL[2] + (k+0.5)*dh; const int kk = k + GRA_GHOST_SIZE;
-            for (int j=0; j<PS1; j++)  {  const double y = amr->patch[0][lv][PID]->EdgeL[1] + (j+0.5)*dh; const int jj = j + GRA_GHOST_SIZE;
-            for (int i=0; i<PS1; i++)  {  const double x = amr->patch[0][lv][PID]->EdgeL[0] + (i+0.5)*dh; const int ii = i + GRA_GHOST_SIZE;
-
-               const double dx = x - BoxCenter[0];
-               const double dy = y - BoxCenter[1];
-               const double dz = z - BoxCenter[2];
-
-               const double dens  = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[DENS][k][j][i];
-               const double momx  = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[MOMX][k][j][i];
-               const double momy  = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[MOMY][k][j][i];
-               const double momz  = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[MOMZ][k][j][i];
-               const double _dens = 1.0 / dens;
-
-               const double r = SQRT( SQR(dx) + SQR(dy) + SQR(dz) );
-               const double Phi_eff_r = Mis_InterpolateFromTable_Ext( Phi_eff, r );
-
-               double dPhi_dx, dPhi_dy, dPhi_dz;
-
-
-               // check
-               if ( abs(h_Pot_Array_P_Out[ArrayID][PID_IDX][kk][jj][ii] - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]) > 1e-8)
-               {
-
-                   printf("lv = %d, PID: %d, i = %d, j = %d, k = %d, prepare = %.2e,  orig: %.2e,  abs diff = %.2e,  rel diff = %.2e\n", lv, PID,
-                          i, j, k,
-
-                          h_Pot_Array_P_Out[ArrayID][PID_IDX][kk][jj][ii],
-
-                          amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i],
-
-                          h_Pot_Array_P_Out[ArrayID][PID_IDX][kk][jj][ii] -
-                          amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i],
-
-                          abs(h_Pot_Array_P_Out[ArrayID][PID_IDX][kk][jj][ii] -
-                          amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]) /
-                          abs(amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i])  );
-
-                   exit(1);
-               }
-
-//             dPhi_dx
-               const double rpx = SQRT( SQR(dx + dh) + SQR(dy) + SQR(dz) );
-               const double rmx = SQRT( SQR(dx - dh) + SQR(dy) + SQR(dz) );
-               const double Phi_eff_rpx = Mis_InterpolateFromTable_Ext( Phi_eff, rpx );
-               const double Phi_eff_rmx = Mis_InterpolateFromTable_Ext( Phi_eff, rmx );
-
-               switch (i)
-               {
-                  case 0:
-                     dPhi_dx = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i+1] + Phi_eff_rpx
-                               - h_Pot_Array_P_Out[ArrayID][PID_IDX][kk][jj][ii-1]           - Phi_eff_rmx ) / (2.0 * dh);
-//                               - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   - Phi_eff_r  ) / dh;
-                     break;
-
-                  case PS1 - 1:
-                     dPhi_dx = ( h_Pot_Array_P_Out[ArrayID][PID_IDX][kk][jj][ii+1]           + Phi_eff_rpx
-                               - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i-1] - Phi_eff_rmx  ) / (2.0 * dh);
-//                     dPhi_dx = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   + Phi_eff_r
-//                               - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i-1] - Phi_eff_rmx  ) / dh;
-                     break;
-
-                  default:
-                     dPhi_dx = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i+1] + Phi_eff_rpx
-                               - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i-1] - Phi_eff_rmx ) / (2.0 * dh);
-               }
-
-
-//             dPhi_dy
-               const double rpy = SQRT( SQR(dx) + SQR(dy + dh) + SQR(dz) );
-               const double rmy = SQRT( SQR(dx) + SQR(dy - dh) + SQR(dz) );
-               const double Phi_eff_rpy = Mis_InterpolateFromTable_Ext( Phi_eff, rpy );
-               const double Phi_eff_rmy = Mis_InterpolateFromTable_Ext( Phi_eff, rmy );
-
-               switch (j)
-               {
-                  case 0:
-                     dPhi_dy = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j+1][i] + Phi_eff_rpy
-                               - h_Pot_Array_P_Out[ArrayID][PID_IDX][kk][jj-1][ii]     - Phi_eff_rmy ) / (2.0 * dh);
-//                               - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   - Phi_eff_r  ) / dh;
-                     break;
-
-                  case PS1 - 1:
-                     dPhi_dy = ( h_Pot_Array_P_Out[ArrayID][PID_IDX][kk][jj+1][ii]     + Phi_eff_rpy
-                               - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j-1][i] - Phi_eff_rmy ) / (2.0 * dh);
-//                     dPhi_dy = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   + Phi_eff_r
-//                               - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j-1][i] - Phi_eff_rmy ) / dh;
-                     break;
-
-                  default:
-                     dPhi_dy = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j+1][i] + Phi_eff_rpy
-                               - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j-1][i] - Phi_eff_rmy ) / (2.0 * dh);
-               }
-
-
-
-//             dPhi_dz
-               const double rpz = SQRT( SQR(dx) + SQR(dy) + SQR(dz + dh) );
-               const double rmz = SQRT( SQR(dx) + SQR(dy) + SQR(dz - dh) );
-               const double Phi_eff_rpz = Mis_InterpolateFromTable_Ext( Phi_eff, rpz );
-               const double Phi_eff_rmz = Mis_InterpolateFromTable_Ext( Phi_eff, rmz );
-
-
-               switch (k)
-               {
-                  case 0:
-                     dPhi_dz = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k+1][j][i] + Phi_eff_rpz
-                               - h_Pot_Array_P_Out[ArrayID][PID_IDX][kk-1][jj][ii]     - Phi_eff_rmz ) / (2.0 * dh);
-//                               - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   - Phi_eff_r ) / dh;
-                     break;
-
-                  case PS1 - 1:
-                     dPhi_dz = ( h_Pot_Array_P_Out[ArrayID][PID_IDX][kk+1][jj][ii]           + Phi_eff_rpz
-                               - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k-1][j][i] - Phi_eff_rmz ) / (2.0 * dh);
-//                     dPhi_dz = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   + Phi_eff_r
-//                               - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k-1][j][i] - Phi_eff_rmz ) / dh;
-                     break;
-
-                  default:
-                     dPhi_dz = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k+1][j][i] + Phi_eff_rpz
-                               - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k-1][j][i] - Phi_eff_rmz ) / (2.0 * dh);
-               }
-
-
-               const double trace = _dens * ( SQR(momx) + SQR(momy) + SQR(momz) )
-                                  -  dens * ( dx * dPhi_dx + dy * dPhi_dy + dz * dPhi_dz );
-
-               OMP_QuadMom_2nd[TID][0] += dv * ( 2.0 * _dens * momx * momx - (2.0 / 3.0) * trace
-                                               - 2.0 *  dens * dx * dPhi_dx                      );  // xx
-               OMP_QuadMom_2nd[TID][1] += dv * ( 2.0 * _dens * momx * momy
-                                               -        dens * ( dx * dPhi_dy + dy * dPhi_dx)    );  // xy
-               OMP_QuadMom_2nd[TID][2] += dv * ( 2.0 * _dens * momx * momz
-                                               -        dens * ( dx * dPhi_dz + dz * dPhi_dx)    );  // xz
-               OMP_QuadMom_2nd[TID][3] += dv * ( 2.0 * _dens * momy * momy - (2.0 / 3.0) * trace
-                                               - 2.0 * dens * dy * dPhi_dy                      );  // yy
-               OMP_QuadMom_2nd[TID][4] += dv * ( 2.0 * _dens * momy * momz
-                                               -        dens * ( dy * dPhi_dz + dz * dPhi_dy)    );  // yz
-               OMP_QuadMom_2nd[TID][5] += dv * ( 2.0 * _dens * momz * momz - (2.0 / 3.0) * trace
-                                               - 2.0 *  dens * dz * dPhi_dz                      );  // zz
-
-            }}} // i,j,k
-         }
-#        pragma omp barrier
-         } // for (int PID=0; PID<amr->NPatchComma[lv][1]; PID++)
-      } // for (int lv=0; lv<NLEVEL; lv++)
-   } // OpenMP parallel region
-
-
-
-// sum over all OpenMP threads
-   for (int b=0; b<NData; b++) {
-   for (int t=0; t<NT; t++)    {
-      QuadMom_2nd[b] += OMP_QuadMom_2nd[t][b];
-   }}
-
-// free per-thread arrays
-   Aux_DeallocateArray2D( OMP_QuadMom_2nd );
-
-
-
-// collect data from all ranks (in-place reduction)
-#  ifndef SERIAL
-   if ( MPI_Rank == 0 )   MPI_Reduce( MPI_IN_PLACE, QuadMom_2nd, NData, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD );
-   else                   MPI_Reduce( QuadMom_2nd,  NULL,        NData, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD );
-#  endif // ifndef SERIAL
-
-
-// multiply the coefficient and unit
-   const double UNIT_QuadMom_2nd = UNIT_M * UNIT_V * UNIT_V;
-   const double coe = 2.0 * Const_NewtonG / pow( Const_c, 4.0 );
-
-   for (int b=0; b<NData; b++)   QuadMom_2nd[b] *= coe * UNIT_QuadMom_2nd;
-
-
-// output to file
-   if ( MPI_Rank == 0 )
-   {
-
-      static bool FirstTime = true;
-
-      if ( FirstTime )
-      {
-//       write header before the first output
-         if ( Aux_CheckFileExist(filename_QuadMom_2nd) )
-         {
-             Aux_Message( stderr, "WARNING : file \"%s\" already exists !!\n", filename_QuadMom_2nd );
-         }
-         else
-         {
-             FILE *file_QuadMom_2nd = fopen( filename_QuadMom_2nd, "w" );
-             fprintf( file_QuadMom_2nd, "#%19s %12s %16s %16s %16s %16s %16s %16s\n",
-                                        "Time", "Step", "xx", "xy", "xz", "yy", "yz", "zz" );
-             fclose( file_QuadMom_2nd );
-         }
-
-         FirstTime = false;
-      }
-
-      FILE *file_QuadMom_2nd = fopen( filename_QuadMom_2nd, "a" );
-
-                                    fprintf( file_QuadMom_2nd, "%20.14e %12ld", Time[0] * UNIT_T, Step );
-      for (int b=0; b<NData; b++)   fprintf( file_QuadMom_2nd, "%17.7e",        QuadMom_2nd[b]         );
-                                    fprintf( file_QuadMom_2nd, "\n"                                    );
-
-      fclose( file_QuadMom_2nd );
-
-   } // if ( MPI_Rank == 0 )
-
-
-// free memory
-                                         Phi_eff       ->FreeMemory();
-   for (int NProf=0; NProf<4; NProf++)   ProfAve[NProf]->FreeMemory();
-
-#  endif // if ( defined GRAVITY  &&  defined GREP )
-
-} // FUNCTION : Record_GWSignal_Full2nd()
-
-
-
-//-------------------------------------------------------------------------------------------------------
-// Function    :  Record_GWSignal_Full2nd
-// Description :  Record the second-order derivative of mass quadrupole moments
-//                tentative experiment
-//-------------------------------------------------------------------------------------------------------
-void Record_GWSignal_Full2nd_Opti()
-{
-
-#  if ( defined GRAVITY  &&  defined GREP )
-
-   const char   filename_QuadMom_2nd[ ] = "Record__QuadMom_2nd";
-   const double BoxCenter           [3] = { 0.5*amr->BoxSize[0], 0.5*amr->BoxSize[1], 0.5*amr->BoxSize[2] };
-
-// allocate memory for per-thread arrays
-#  ifdef OPENMP
-   const int NT = OMP_NTHREAD;   // number of OpenMP threads
-#  else
-   const int NT = 1;
-#  endif
-
-// in order of xx, xy, xz, yy, yz, zz
-   const int NData = 6;
-   int ArrayID = 0;
-//   int NPG = 1;
-//   int NPG;
-   int NPG_Max = POT_GPU_NPGROUP;
-//   int NPG_Max = 1;
-
-   double QuadMom_2nd[NData] = { 0.0 };
-   double **OMP_QuadMom_2nd=NULL;
-   Aux_AllocateArray2D( OMP_QuadMom_2nd, NT, NData );
-
-// update GREP
-//   for (int lv=0; lv<NLEVEL; lv++)   Init_GREffPot( lv, Time[lv] );
 
 
 #  pragma omp parallel
@@ -1440,48 +790,30 @@ void Record_GWSignal_Full2nd_Opti()
 
          const double dh = amr->dh[lv];
          const double dv = CUBE( dh );
-//         const double TimeNew = ( Time[lv] == 0.0 )? 0 : 1;
-         const double TimeNew = Time[lv];
-//            const double TimeNew = 0;  // Sg = 0 : Store both data and relation (father,son.sibling,corner,flag,flux)
 
-//         printf("lv = %d, Time = %.6e, TimeNew = %.6e\n", lv, Time[lv], TimeNew);
+         const double TimeNew     = Time[lv];
+         const int    NTotal = amr->NPatchComma[lv][1] / 8;
+               int   *PID0_List   = new int [NTotal];
 
-         const int  NTotal = amr->NPatchComma[lv][1];
-         const int factor = 8;
-         const int  NTotal_List = NTotal / factor;
-         int *PID0_List = new int [NTotal_List];
-         for (int t=0; t<NTotal_List; t++)  PID0_List[t] = factor*t;
+         for (int t=0; t<NTotal; t++)  PID0_List[t] = 8*t;
 
-//         for (int PID0=0; PID0<NTotal_List; PID0++)
-         for (int Disp=0; Disp<NTotal_List; Disp+=NPG_Max)
+
+         for (int Disp=0; Disp<NTotal; Disp+=NPG_Max)
          {
 
-            int NPG = ( NPG_Max < NTotal_List-Disp ) ? NPG_Max : NTotal_List-Disp;
-//            printf("NPG: %d\n", NPG);
+            int NPG = ( NPG_Max < NTotal-Disp ) ? NPG_Max : NTotal-Disp;
 
             Prepare_PatchData( lv, TimeNew, &h_Pot_Array_P_Out[ArrayID][0][0][0][0], NULL,
-//                               GRA_GHOST_SIZE, NPG, PID0_List, _POTE, _NONE,
-//                               GRA_GHOST_SIZE, NPG, PID0_List+PID0, _POTE, _NONE,
                                GRA_GHOST_SIZE, NPG, PID0_List+Disp, _POTE, _NONE,
                                OPT__GRA_INT_SCHEME, INT_NONE, UNIT_PATCH, (GRA_GHOST_SIZE==0)?NSIDE_00:NSIDE_06, false,
                                OPT__BC_FLU, OPT__BC_POT, -1.0, -1.0, false );
 
 #        pragma omp for schedule( runtime )
-//         for (int PID_IDX=0; PID_IDX<factor; PID_IDX++)
-         for (int PID_IDX=0; PID_IDX<factor*NPG; PID_IDX++)
+         for (int PID_IDX=0; PID_IDX<8*NPG; PID_IDX++)
          {
-//            int PID = PID0*factor + PID_IDX;
-            int PID = Disp*factor + PID_IDX;
-//            printf("NPG = %d, PID_IDX = %d, PID = %d, Total = %d\n", NPG, PID_IDX, PID, NTotal);
+            int PID = 8*Disp + PID_IDX;
 
             if ( amr->patch[0][lv][PID]->son != -1 )  continue;
-
-            // prepare the data including the ghost zone
-//            printf("lv = %d,  PID  = %d\n", lv, PID);
-
-//            for (int foo=0; foo<8; foo++)
-//               printf("%d-th prepared patch = %.2e\n", foo, h_Pot_Array_P_Out[ArrayID][foo][0][0][0]);
-
 
             for (int k=0; k<PS1; k++)  {  const double z = amr->patch[0][lv][PID]->EdgeL[2] + (k+0.5)*dh; const int kk = k + GRA_GHOST_SIZE;
             for (int j=0; j<PS1; j++)  {  const double y = amr->patch[0][lv][PID]->EdgeL[1] + (j+0.5)*dh; const int jj = j + GRA_GHOST_SIZE;
@@ -1490,6 +822,7 @@ void Record_GWSignal_Full2nd_Opti()
                const double dx = x - BoxCenter[0];
                const double dy = y - BoxCenter[1];
                const double dz = z - BoxCenter[2];
+               const double r = SQRT( SQR(dx) + SQR(dy) + SQR(dz) );
 
                const double dens  = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[DENS][k][j][i];
                const double momx  = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[MOMX][k][j][i];
@@ -1497,116 +830,79 @@ void Record_GWSignal_Full2nd_Opti()
                const double momz  = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[MOMZ][k][j][i];
                const double _dens = 1.0 / dens;
 
-               const double r = SQRT( SQR(dx) + SQR(dy) + SQR(dz) );
-               const double Phi_eff_r = Mis_InterpolateFromTable_Ext( Phi_GREP, r );
+               const real (*PotPtr    )[PS1][PS1]         = amr->patch[ amr->PotSg[lv] ][lv][PID]->pot;
+               const real (*PrepPotPtr)[GRA_NXT][GRA_NXT] = h_Pot_Array_P_Out[ArrayID][PID_IDX];
 
+               const double Phi_eff_r = Mis_InterpolateFromTable_Ext( Phi_GREP, r );
                double dPhi_dx, dPhi_dy, dPhi_dz;
 
-
-               // check
-/*
-               if ( abs(h_Pot_Array_P_Out[ArrayID][PID_IDX][kk][jj][ii] - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]) /
-                    abs(amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]) > 1e-8)
-               {
-
-                   printf("lv = %d, PID: %d, i = %d, j = %d, k = %d, prepare = %.2e,  orig: %.2e,  abs diff = %.2e,  rel diff = %.2e\n", lv, PID,
-                          i, j, k,
-
-                          h_Pot_Array_P_Out[ArrayID][PID_IDX][kk][jj][ii],
-
-                          amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i],
-
-                          h_Pot_Array_P_Out[ArrayID][PID_IDX][kk][jj][ii] -
-                          amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i],
-
-                          abs(h_Pot_Array_P_Out[ArrayID][PID_IDX][kk][jj][ii] -
-                          amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]) /
-                          abs(amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i])  );
-
-                   exit(1);
-               }
-*/
-
 //             dPhi_dx
-               const double rpx = SQRT( SQR(dx + dh) + SQR(dy) + SQR(dz) );
-               const double rmx = SQRT( SQR(dx - dh) + SQR(dy) + SQR(dz) );
+               const double rpx = SQRT( SQR(dx + 1.0*dh) + SQR(dy) + SQR(dz) );
+               const double rmx = SQRT( SQR(dx - 1.0*dh) + SQR(dy) + SQR(dz) );
                const double Phi_eff_rpx = Mis_InterpolateFromTable_Ext( Phi_GREP, rpx );
                const double Phi_eff_rmx = Mis_InterpolateFromTable_Ext( Phi_GREP, rmx );
 
                switch (i)
                {
                   case 0:
-                     dPhi_dx = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i+1] + Phi_eff_rpx
-                               - h_Pot_Array_P_Out[ArrayID][PID_IDX][kk][jj][ii-1]           - Phi_eff_rmx ) / (2.0 * dh);
-//                               - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   - Phi_eff_r  ) / dh;
+                     dPhi_dx = ( PotPtr    [ k][ j][ i+1] + Phi_eff_rpx
+                               - PrepPotPtr[kk][jj][ii-1] - Phi_eff_rmx ) / (2.0 * dh);
                      break;
 
                   case PS1 - 1:
-                     dPhi_dx = ( h_Pot_Array_P_Out[ArrayID][PID_IDX][kk][jj][ii+1]           + Phi_eff_rpx
-                               - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i-1] - Phi_eff_rmx  ) / (2.0 * dh);
-//                     dPhi_dx = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   + Phi_eff_r
-//                               - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i-1] - Phi_eff_rmx  ) / dh;
+                     dPhi_dx = ( PrepPotPtr[kk][jj][ii+1] + Phi_eff_rpx
+                               - PotPtr    [ k][ j][ i-1] - Phi_eff_rmx ) / (2.0 * dh);
                      break;
 
                   default:
-                     dPhi_dx = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i+1] + Phi_eff_rpx
-                               - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i-1] - Phi_eff_rmx ) / (2.0 * dh);
+                     dPhi_dx = ( PotPtr    [ k][ j][ i+1] + Phi_eff_rpx
+                               - PotPtr    [ k][ j][ i-1] - Phi_eff_rmx ) / (2.0 * dh);
                }
 
-
 //             dPhi_dy
-               const double rpy = SQRT( SQR(dx) + SQR(dy + dh) + SQR(dz) );
-               const double rmy = SQRT( SQR(dx) + SQR(dy - dh) + SQR(dz) );
+               const double rpy = SQRT( SQR(dx) + SQR(dy + 1.0*dh) + SQR(dz) );
+               const double rmy = SQRT( SQR(dx) + SQR(dy - 1.0*dh) + SQR(dz) );
                const double Phi_eff_rpy = Mis_InterpolateFromTable_Ext( Phi_GREP, rpy );
                const double Phi_eff_rmy = Mis_InterpolateFromTable_Ext( Phi_GREP, rmy );
 
                switch (j)
                {
                   case 0:
-                     dPhi_dy = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j+1][i] + Phi_eff_rpy
-                               - h_Pot_Array_P_Out[ArrayID][PID_IDX][kk][jj-1][ii]     - Phi_eff_rmy ) / (2.0 * dh);
-//                               - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   - Phi_eff_r  ) / dh;
+                     dPhi_dy = ( PotPtr    [ k][ j+1][ i] + Phi_eff_rpy
+                               - PrepPotPtr[kk][jj-1][ii] - Phi_eff_rmy ) / (2.0 * dh);
                      break;
 
                   case PS1 - 1:
-                     dPhi_dy = ( h_Pot_Array_P_Out[ArrayID][PID_IDX][kk][jj+1][ii]     + Phi_eff_rpy
-                               - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j-1][i] - Phi_eff_rmy ) / (2.0 * dh);
-//                     dPhi_dy = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   + Phi_eff_r
-//                               - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j-1][i] - Phi_eff_rmy ) / dh;
+                     dPhi_dy = ( PrepPotPtr[kk][jj+1][ii] + Phi_eff_rpy
+                               - PotPtr    [ k][ j-1][ i] - Phi_eff_rmy ) / (2.0 * dh);
                      break;
 
                   default:
-                     dPhi_dy = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j+1][i] + Phi_eff_rpy
-                               - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j-1][i] - Phi_eff_rmy ) / (2.0 * dh);
+                     dPhi_dy = ( PotPtr    [ k][ j+1][ i] + Phi_eff_rpy
+                               - PotPtr    [ k][ j-1][ i] - Phi_eff_rmy ) / (2.0 * dh);
                }
 
-
-
 //             dPhi_dz
-               const double rpz = SQRT( SQR(dx) + SQR(dy) + SQR(dz + dh) );
-               const double rmz = SQRT( SQR(dx) + SQR(dy) + SQR(dz - dh) );
+               const double rpz = SQRT( SQR(dx) + SQR(dy) + SQR(dz + 1.0*dh) );
+               const double rmz = SQRT( SQR(dx) + SQR(dy) + SQR(dz - 1.0*dh) );
                const double Phi_eff_rpz = Mis_InterpolateFromTable_Ext( Phi_GREP, rpz );
                const double Phi_eff_rmz = Mis_InterpolateFromTable_Ext( Phi_GREP, rmz );
-
 
                switch (k)
                {
                   case 0:
-                     dPhi_dz = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k+1][j][i] + Phi_eff_rpz
-                               - h_Pot_Array_P_Out[ArrayID][PID_IDX][kk-1][jj][ii]     - Phi_eff_rmz ) / (2.0 * dh);
-//                               - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   - Phi_eff_r ) / dh;
+                     dPhi_dz = ( PotPtr    [ k+1][ j][ i] + Phi_eff_rpz
+                               - PrepPotPtr[kk-1][jj][ii] - Phi_eff_rmz ) / (2.0 * dh);
                      break;
 
                   case PS1 - 1:
-                     dPhi_dz = ( h_Pot_Array_P_Out[ArrayID][PID_IDX][kk+1][jj][ii]           + Phi_eff_rpz
-                               - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k-1][j][i] - Phi_eff_rmz ) / (2.0 * dh);
-//                     dPhi_dz = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   + Phi_eff_r
-//                               - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k-1][j][i] - Phi_eff_rmz ) / dh;
+                     dPhi_dz = ( PrepPotPtr[kk+1][jj][ii] + Phi_eff_rpz
+                               - PotPtr    [ k-1][ j][ i] - Phi_eff_rmz ) / (2.0 * dh);
                      break;
 
                   default:
-                     dPhi_dz = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k+1][j][i] + Phi_eff_rpz
-                               - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k-1][j][i] - Phi_eff_rmz ) / (2.0 * dh);
+                     dPhi_dz = ( PotPtr    [ k+1][ j][ i] + Phi_eff_rpz
+                               - PotPtr    [ k-1][ j][ i] - Phi_eff_rmz ) / (2.0 * dh);
                }
 
 
@@ -1620,7 +916,7 @@ void Record_GWSignal_Full2nd_Opti()
                OMP_QuadMom_2nd[TID][2] += dv * ( 2.0 * _dens * momx * momz
                                                -        dens * ( dx * dPhi_dz + dz * dPhi_dx)    );  // xz
                OMP_QuadMom_2nd[TID][3] += dv * ( 2.0 * _dens * momy * momy - (2.0 / 3.0) * trace
-                                               - 2.0 * dens * dy * dPhi_dy                      );  // yy
+                                               - 2.0 *  dens * dy * dPhi_dy                      );  // yy
                OMP_QuadMom_2nd[TID][4] += dv * ( 2.0 * _dens * momy * momz
                                                -        dens * ( dy * dPhi_dz + dz * dPhi_dy)    );  // yz
                OMP_QuadMom_2nd[TID][5] += dv * ( 2.0 * _dens * momz * momz - (2.0 / 3.0) * trace
@@ -1634,7 +930,6 @@ void Record_GWSignal_Full2nd_Opti()
    } // OpenMP parallel region
 
 
-
 // sum over all OpenMP threads
    for (int b=0; b<NData; b++) {
    for (int t=0; t<NT; t++)    {
@@ -1643,7 +938,6 @@ void Record_GWSignal_Full2nd_Opti()
 
 // free per-thread arrays
    Aux_DeallocateArray2D( OMP_QuadMom_2nd );
-
 
 
 // collect data from all ranks (in-place reduction)
@@ -1666,9 +960,9 @@ void Record_GWSignal_Full2nd_Opti()
 
       static bool FirstTime = true;
 
+//    output file header
       if ( FirstTime )
       {
-//       write header before the first output
          if ( Aux_CheckFileExist(filename_QuadMom_2nd) )
          {
              Aux_Message( stderr, "WARNING : file \"%s\" already exists !!\n", filename_QuadMom_2nd );
@@ -1676,7 +970,7 @@ void Record_GWSignal_Full2nd_Opti()
          else
          {
              FILE *file_QuadMom_2nd = fopen( filename_QuadMom_2nd, "w" );
-             fprintf( file_QuadMom_2nd, "#%19s %12s %16s %16s %16s %16s %16s %16s\n",
+             fprintf( file_QuadMom_2nd, "#%14s %7s %16s %16s %16s %16s %16s %16s\n",
                                         "Time", "Step", "xx", "xy", "xz", "yy", "yz", "zz" );
              fclose( file_QuadMom_2nd );
          }
@@ -1686,495 +980,15 @@ void Record_GWSignal_Full2nd_Opti()
 
       FILE *file_QuadMom_2nd = fopen( filename_QuadMom_2nd, "a" );
 
-                                    fprintf( file_QuadMom_2nd, "%20.14e %12ld", Time[0] * UNIT_T, Step );
-      for (int b=0; b<NData; b++)   fprintf( file_QuadMom_2nd, "%17.7e",        QuadMom_2nd[b]         );
-                                    fprintf( file_QuadMom_2nd, "\n"                                    );
+                                    fprintf( file_QuadMom_2nd, "%15.7e %7ld", Time[0] * UNIT_T, Step );
+      for (int b=0; b<NData; b++)   fprintf( file_QuadMom_2nd, "%17.7e", QuadMom_2nd[b] );
+                                    fprintf( file_QuadMom_2nd, "\n" );
 
       fclose( file_QuadMom_2nd );
 
    } // if ( MPI_Rank == 0 )
 
-
 #  endif // if ( defined GRAVITY  &&  defined GREP )
 
-} // FUNCTION : Record_GWSignal_Full2nd()
-
-
-
-//-------------------------------------------------------------------------------------------------------
-// Function    :  Record_GWSignal_Part2nd_Opti
-// Description :  Record the second-order derivative of mass quadrupole moments
-//                see Nakamura & Oohara (1989), Oohara et al. (1997), eq. (6) in Andresen et al. (2017)
-//-------------------------------------------------------------------------------------------------------
-void Record_GWSignal_Part2nd_Opti()
-{
-
-#  if ( defined GRAVITY  &&  defined GREP )
-
-   const char   filename_QuadMom_2nd[ ] = "Record__QuadMom_2nd";
-   const double BoxCenter           [3] = { 0.5*amr->BoxSize[0], 0.5*amr->BoxSize[1], 0.5*amr->BoxSize[2] };
-
-// allocate memory for per-thread arrays
-#  ifdef OPENMP
-   const int NT = OMP_NTHREAD;   // number of OpenMP threads
-#  else
-   const int NT = 1;
-#  endif
-
-// in order of xx, xy, xz, yy, yz, zz
-   const int NData = 6;
-
-   double QuadMom_2nd[NData] = { 0.0 };
-   double **OMP_QuadMom_2nd=NULL;
-   Aux_AllocateArray2D( OMP_QuadMom_2nd, NT, NData );
-
-// update GREP
-   for (int lv=0; lv<NLEVEL; lv++)   Init_GREffPot( lv, Time[lv] );
-
-
-#  pragma omp parallel
-   {
-#     ifdef OPENMP
-      const int TID = omp_get_thread_num();
-#     else
-      const int TID = 0;
-#     endif
-
-//    initialize arrays
-      for (int b=0; b<NData; b++)   OMP_QuadMom_2nd[TID][b] = 0.0;
-
-      for (int lv=0; lv<NLEVEL; lv++)
-      {
-         Profile_t *Phi_GREP = Phi_eff[lv][ GREPSg[lv] ];
-
-         const double dh = amr->dh[lv];
-         const double dv = CUBE( dh );
-
-#        pragma omp for schedule( runtime )
-         for (int PID=0; PID<amr->NPatchComma[lv][1]; PID++)
-         {
-            if ( amr->patch[0][lv][PID]->son != -1 )  continue;
-
-            for (int k=0; k<PS1; k++)  {  const double z = amr->patch[0][lv][PID]->EdgeL[2] + (k+0.5)*dh;
-            for (int j=0; j<PS1; j++)  {  const double y = amr->patch[0][lv][PID]->EdgeL[1] + (j+0.5)*dh;
-            for (int i=0; i<PS1; i++)  {  const double x = amr->patch[0][lv][PID]->EdgeL[0] + (i+0.5)*dh;
-
-               const double dx = x - BoxCenter[0];
-               const double dy = y - BoxCenter[1];
-               const double dz = z - BoxCenter[2];
-
-               const double dens  = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[DENS][k][j][i];
-               const double momx  = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[MOMX][k][j][i];
-               const double momy  = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[MOMY][k][j][i];
-               const double momz  = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[MOMZ][k][j][i];
-               const double _dens = 1.0 / dens;
-
-               const double r = SQRT( SQR(dx) + SQR(dy) + SQR(dz) );
-               const double Phi_eff_r = Mis_InterpolateFromTable_Ext( Phi_GREP, r );
-
-               double dPhi_dx, dPhi_dy, dPhi_dz;
-
-//             dPhi_dx
-               if ( i == 0 )
-               {
-                  const double rpx = SQRT( SQR(dx + dh) + SQR(dy) + SQR(dz) );
-                  const double Phi_eff_rpx = Mis_InterpolateFromTable_Ext( Phi_GREP, rpx );
-
-                  dPhi_dx = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i+1] + Phi_eff_rpx
-                            - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   - Phi_eff_r   ) / dh;
-               }
-
-               else if ( i < PS1 -1 )
-               {
-                  const double rpx = SQRT( SQR(dx + dh) + SQR(dy) + SQR(dz) );
-                  const double rmx = SQRT( SQR(dx - dh) + SQR(dy) + SQR(dz) );
-                  const double Phi_eff_rpx = Mis_InterpolateFromTable_Ext( Phi_GREP, rpx );
-                  const double Phi_eff_rmx = Mis_InterpolateFromTable_Ext( Phi_GREP, rmx );
-
-                  dPhi_dx = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i+1] + Phi_eff_rpx
-                            - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i-1] - Phi_eff_rmx ) / (2.0 * dh);
-               }
-
-               else
-               {
-                  const double rmx = SQRT( SQR(dx - dh) + SQR(dy) + SQR(dz) );
-                  const double Phi_eff_rmx = Mis_InterpolateFromTable_Ext( Phi_GREP, rmx );
-
-                  dPhi_dx = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   + Phi_eff_r
-                            - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i-1] - Phi_eff_rmx  ) / dh;
-               }
-
-//             dPhi_dy
-               if ( j == 0 )
-               {
-                  const double rpy = SQRT( SQR(dx) + SQR(dy + dh) + SQR(dz) );
-                  const double Phi_eff_rpy = Mis_InterpolateFromTable_Ext( Phi_GREP, rpy );
-
-                  dPhi_dy = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j+1][i] + Phi_eff_rpy
-                            - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   - Phi_eff_r   ) / dh;
-               }
-               else if ( j < PS1 -1 )
-               {
-                  const double rpy = SQRT( SQR(dx) + SQR(dy + dh) + SQR(dz) );
-                  const double rmy = SQRT( SQR(dx) + SQR(dy - dh) + SQR(dz) );
-                  const double Phi_eff_rpy = Mis_InterpolateFromTable_Ext( Phi_GREP, rpy );
-                  const double Phi_eff_rmy = Mis_InterpolateFromTable_Ext( Phi_GREP, rmy );
-
-                  dPhi_dy = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j+1][i] + Phi_eff_rpy
-                            - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j-1][i] - Phi_eff_rmy ) / (2.0 * dh);
-               }
-               else
-               {
-                  const double rmy = SQRT( SQR(dx) + SQR(dy - dh) + SQR(dz) );
-                  const double Phi_eff_rmy = Mis_InterpolateFromTable_Ext( Phi_GREP, rmy );
-
-                  dPhi_dy = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   + Phi_eff_r
-                            - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j-1][i] - Phi_eff_rmy  ) / dh;
-               }
-
-//             dPhi_dz
-               if ( k == 0 )
-               {
-                  const double rpz = SQRT( SQR(dx) + SQR(dy) + SQR(dz + dh) );
-                  const double Phi_eff_rpz = Mis_InterpolateFromTable_Ext( Phi_GREP, rpz );
-
-                  dPhi_dz = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k+1][j][i] + Phi_eff_rpz
-                            - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   - Phi_eff_r   ) / dh;
-               }
-               else if ( k < PS1 -1 )
-               {
-                  const double rpz = SQRT( SQR(dx) + SQR(dy) + SQR(dz + dh) );
-                  const double rmz = SQRT( SQR(dx) + SQR(dy) + SQR(dz - dh) );
-                  const double Phi_eff_rpz = Mis_InterpolateFromTable_Ext( Phi_GREP, rpz );
-                  const double Phi_eff_rmz = Mis_InterpolateFromTable_Ext( Phi_GREP, rmz );
-
-                  dPhi_dz = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k+1][j][i] + Phi_eff_rpz
-                            - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k-1][j][i] - Phi_eff_rmz ) / (2.0 * dh);
-               }
-               else
-               {
-                  const double rmz = SQRT( SQR(dx) + SQR(dy) + SQR(dz - dh) );
-                  const double Phi_eff_rmz = Mis_InterpolateFromTable_Ext( Phi_GREP, rmz );
-
-                  dPhi_dz = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   + Phi_eff_r
-                            - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k-1][j][i] - Phi_eff_rmz  ) / dh;
-               }
-
-               const double trace = _dens * ( SQR(momx) + SQR(momy) + SQR(momz) )
-                                  -  dens * ( dx * dPhi_dx + dy * dPhi_dy + dz * dPhi_dz );
-
-               OMP_QuadMom_2nd[TID][0] += dv * ( 2.0 * _dens * momx * momx - (2.0 / 3.0) * trace
-                                               - 2.0 *  dens * dx * dPhi_dx                      );  // xx
-               OMP_QuadMom_2nd[TID][1] += dv * ( 2.0 * _dens * momx * momy
-                                               -        dens * ( dx * dPhi_dy + dy * dPhi_dx)    );  // xy
-               OMP_QuadMom_2nd[TID][2] += dv * ( 2.0 * _dens * momx * momz
-                                               -        dens * ( dx * dPhi_dz + dz * dPhi_dx)    );  // xz
-               OMP_QuadMom_2nd[TID][3] += dv * ( 2.0 * _dens * momy * momy - (2.0 / 3.0) * trace
-                                               - 2.0 * dens * dy * dPhi_dy                      );  // yy
-               OMP_QuadMom_2nd[TID][4] += dv * ( 2.0 * _dens * momy * momz
-                                               -        dens * ( dy * dPhi_dz + dz * dPhi_dy)    );  // yz
-               OMP_QuadMom_2nd[TID][5] += dv * ( 2.0 * _dens * momz * momz - (2.0 / 3.0) * trace
-                                               - 2.0 *  dens * dz * dPhi_dz                      );  // zz
-
-            }}} // i,j,k
-         } // for (int PID=0; PID<amr->NPatchComma[lv][1]; PID++)
-      } // for (int lv=0; lv<NLEVEL; lv++)
-   } // OpenMP parallel region
-
-
-
-// sum over all OpenMP threads
-   for (int b=0; b<NData; b++) {
-   for (int t=0; t<NT; t++)    {
-      QuadMom_2nd[b] += OMP_QuadMom_2nd[t][b];
-   }}
-
-// free per-thread arrays
-   Aux_DeallocateArray2D( OMP_QuadMom_2nd );
-
-
-
-// collect data from all ranks (in-place reduction)
-#  ifndef SERIAL
-   if ( MPI_Rank == 0 )   MPI_Reduce( MPI_IN_PLACE, QuadMom_2nd, NData, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD );
-   else                   MPI_Reduce( QuadMom_2nd,  NULL,        NData, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD );
-#  endif // ifndef SERIAL
-
-
-// multiply the coefficient and unit
-   const double UNIT_QuadMom_2nd = UNIT_M * UNIT_V * UNIT_V;
-   const double coe = 2.0 * Const_NewtonG / pow( Const_c, 4.0 );
-
-   for (int b=0; b<NData; b++)   QuadMom_2nd[b] *= coe * UNIT_QuadMom_2nd;
-
-
-// output to file
-   if ( MPI_Rank == 0 )
-   {
-
-      static bool FirstTime = true;
-
-      if ( FirstTime )
-      {
-//       write header before the first output
-         if ( Aux_CheckFileExist(filename_QuadMom_2nd) )
-         {
-             Aux_Message( stderr, "WARNING : file \"%s\" already exists !!\n", filename_QuadMom_2nd );
-         }
-         else
-         {
-             FILE *file_QuadMom_2nd = fopen( filename_QuadMom_2nd, "w" );
-             fprintf( file_QuadMom_2nd, "#%19s %12s %16s %16s %16s %16s %16s %16s\n",
-                                        "Time", "Step", "xx", "xy", "xz", "yy", "yz", "zz" );
-             fclose( file_QuadMom_2nd );
-         }
-
-         FirstTime = false;
-      }
-
-      FILE *file_QuadMom_2nd = fopen( filename_QuadMom_2nd, "a" );
-
-                                    fprintf( file_QuadMom_2nd, "%20.14e %12ld", Time[0] * UNIT_T, Step );
-      for (int b=0; b<NData; b++)   fprintf( file_QuadMom_2nd, "%17.7e",        QuadMom_2nd[b]         );
-                                    fprintf( file_QuadMom_2nd, "\n"                                    );
-
-      fclose( file_QuadMom_2nd );
-
-   } // if ( MPI_Rank == 0 )
-
-
-#  endif // if ( defined GRAVITY  &&  defined GREP )
-
-} // FUNCTION : Record_GWSignal_Part2nd_Opti()
-
-
-
-
-
-
-
-//-------------------------------------------------------------------------------------------------------
-// Function    :  Record_GWSignal_checkyz
-// Description :  Record the second-order derivative of mass quadrupole moments
-//                see Nakamura & Oohara (1989), Oohara et al. (1997), eq. (6) in Andresen et al. (2017)
-//-------------------------------------------------------------------------------------------------------
-void Record_GWSignal_checkyz()
-{
-
-#  if ( defined GRAVITY  &&  defined GREP )
-
-   const char   filename_Check_1st[ ] = "Check__yz_1stDiff";
-   const char   filename_Check_2nd[ ] = "Check__yz_2ndPartDiff";
-   const double BoxCenter           [3] = { 0.5*amr->BoxSize[0], 0.5*amr->BoxSize[1], 0.5*amr->BoxSize[2] };
-
-   const double UNIT_QuadMom_2nd = UNIT_M * UNIT_V * UNIT_V;
-   const double coe = 2.0 * Const_NewtonG / pow( Const_c, 4.0 );
-
-
-   FILE *file_Check_1st = fopen( filename_Check_1st, "w" );
-   FILE *file_Check_2nd = fopen( filename_Check_2nd, "w" );
-   fprintf( file_Check_1st, "#%19s %12s %16s %16s %16s %16s %16s %16s\n",
-                              "Level", "PID", "dx", "dy", "dz", "dPhi_dy", "dPhi_dz", "yz" );
-   fprintf( file_Check_2nd, "#%19s %12s %16s %16s %16s %16s %16s %16s\n",
-                              "Level", "PID", "dx", "dy", "dz", "dPhi_dy", "dPhi_dz", "yz" );
-
-
-
-// allocate memory for per-thread arrays
-#  ifdef OPENMP
-   const int NT = OMP_NTHREAD;   // number of OpenMP threads
-#  else
-   const int NT = 1;
-#  endif
-
-// in order of xx, xy, xz, yy, yz, zz
-   const int NData = 6;
-
-   double QuadMom_2nd[NData] = { 0.0 };
-   double **OMP_QuadMom_2nd=NULL;
-   Aux_AllocateArray2D( OMP_QuadMom_2nd, NT, NData );
-
-// update GREP
-   for (int lv=0; lv<NLEVEL; lv++)   Init_GREffPot( lv, Time[lv] );
-
-
-#  pragma omp parallel
-   {
-#     ifdef OPENMP
-      const int TID = omp_get_thread_num();
-#     else
-      const int TID = 0;
-#     endif
-
-//    initialize arrays
-      for (int b=0; b<NData; b++)   OMP_QuadMom_2nd[TID][b] = 0.0;
-
-      for (int lv=0; lv<NLEVEL; lv++)
-      {
-         Profile_t *Phi_GREP = Phi_eff[lv][ GREPSg[lv] ];
-
-         const double dh = amr->dh[lv];
-         const double dv = CUBE( dh );
-
-#        pragma omp for schedule( runtime )
-         for (int PID=0; PID<amr->NPatchComma[lv][1]; PID++)
-         {
-            if ( amr->patch[0][lv][PID]->son != -1 )  continue;
-
-            for (int k=0; k<PS1; k++)  {  const double z = amr->patch[0][lv][PID]->EdgeL[2] + (k+0.5)*dh;
-            for (int j=0; j<PS1; j++)  {  const double y = amr->patch[0][lv][PID]->EdgeL[1] + (j+0.5)*dh;
-            for (int i=0; i<PS1; i++)  {  const double x = amr->patch[0][lv][PID]->EdgeL[0] + (i+0.5)*dh;
-
-               const double dx = x - BoxCenter[0];
-               const double dy = y - BoxCenter[1];
-               const double dz = z - BoxCenter[2];
-
-               const double dens  = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[DENS][k][j][i];
-               const double momx  = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[MOMX][k][j][i];
-               const double momy  = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[MOMY][k][j][i];
-               const double momz  = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[MOMZ][k][j][i];
-               const double _dens = 1.0 / dens;
-
-               const double r = SQRT( SQR(dx) + SQR(dy) + SQR(dz) );
-               const double Phi_eff_r = Mis_InterpolateFromTable_Ext( Phi_GREP, r );
-
-               double dPhi_dx, dPhi_dy, dPhi_dz;
-               double dPhi_dx_1st, dPhi_dy_1st, dPhi_dz_1st;
-
-//             dPhi_dx
-               if ( i == 0 )
-               {
-                  const double rpx = SQRT( SQR(dx + dh) + SQR(dy) + SQR(dz) );
-                  const double Phi_eff_rpx = Mis_InterpolateFromTable_Ext( Phi_GREP, rpx );
-
-                  dPhi_dx = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i+1] + Phi_eff_rpx
-                            - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   - Phi_eff_r   ) / dh;
-                  dPhi_dx_1st = dPhi_dx;
-               }
-
-               else if ( i < PS1 -1 )
-               {
-                  const double rpx = SQRT( SQR(dx + dh) + SQR(dy) + SQR(dz) );
-                  const double rmx = SQRT( SQR(dx - dh) + SQR(dy) + SQR(dz) );
-                  const double Phi_eff_rpx = Mis_InterpolateFromTable_Ext( Phi_GREP, rpx );
-                  const double Phi_eff_rmx = Mis_InterpolateFromTable_Ext( Phi_GREP, rmx );
-
-                  dPhi_dx = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i+1] + Phi_eff_rpx
-                            - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i-1] - Phi_eff_rmx ) / (2.0 * dh);
-                  dPhi_dx_1st = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i+1] + Phi_eff_rpx
-                            - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   - Phi_eff_r   ) / dh;
-               }
-
-               else
-               {
-                  const double rmx = SQRT( SQR(dx - dh) + SQR(dy) + SQR(dz) );
-                  const double Phi_eff_rmx = Mis_InterpolateFromTable_Ext( Phi_GREP, rmx );
-
-                  dPhi_dx = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   + Phi_eff_r
-                            - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i-1] - Phi_eff_rmx  ) / dh;
-                  dPhi_dx_1st = dPhi_dx;
-               }
-
-//             dPhi_dy
-               if ( j == 0 )
-               {
-                  const double rpy = SQRT( SQR(dx) + SQR(dy + dh) + SQR(dz) );
-                  const double Phi_eff_rpy = Mis_InterpolateFromTable_Ext( Phi_GREP, rpy );
-
-                  dPhi_dy = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j+1][i] + Phi_eff_rpy
-                            - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   - Phi_eff_r   ) / dh;
-                  dPhi_dy_1st = dPhi_dy;
-               }
-               else if ( j < PS1 -1 )
-               {
-                  const double rpy = SQRT( SQR(dx) + SQR(dy + dh) + SQR(dz) );
-                  const double rmy = SQRT( SQR(dx) + SQR(dy - dh) + SQR(dz) );
-                  const double Phi_eff_rpy = Mis_InterpolateFromTable_Ext( Phi_GREP, rpy );
-                  const double Phi_eff_rmy = Mis_InterpolateFromTable_Ext( Phi_GREP, rmy );
-
-                  dPhi_dy = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j+1][i] + Phi_eff_rpy
-                            - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j-1][i] - Phi_eff_rmy ) / (2.0 * dh);
-                  dPhi_dy_1st = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j+1][i] + Phi_eff_rpy
-                            - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   - Phi_eff_r   ) / dh;
-               }
-               else
-               {
-                  const double rmy = SQRT( SQR(dx) + SQR(dy - dh) + SQR(dz) );
-                  const double Phi_eff_rmy = Mis_InterpolateFromTable_Ext( Phi_GREP, rmy );
-
-                  dPhi_dy = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   + Phi_eff_r
-                            - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j-1][i] - Phi_eff_rmy  ) / dh;
-                  dPhi_dy_1st = dPhi_dy;
-               }
-
-//             dPhi_dz
-               if ( k == 0 )
-               {
-                  const double rpz = SQRT( SQR(dx) + SQR(dy) + SQR(dz + dh) );
-                  const double Phi_eff_rpz = Mis_InterpolateFromTable_Ext( Phi_GREP, rpz );
-
-                  dPhi_dz = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k+1][j][i] + Phi_eff_rpz
-                            - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   - Phi_eff_r   ) / dh;
-                  dPhi_dz_1st = dPhi_dz;
-               }
-               else if ( k < PS1 -1 )
-               {
-                  const double rpz = SQRT( SQR(dx) + SQR(dy) + SQR(dz + dh) );
-                  const double rmz = SQRT( SQR(dx) + SQR(dy) + SQR(dz - dh) );
-                  const double Phi_eff_rpz = Mis_InterpolateFromTable_Ext( Phi_GREP, rpz );
-                  const double Phi_eff_rmz = Mis_InterpolateFromTable_Ext( Phi_GREP, rmz );
-
-                  dPhi_dz = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k+1][j][i] + Phi_eff_rpz
-                            - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k-1][j][i] - Phi_eff_rmz ) / (2.0 * dh);
-                  dPhi_dz_1st = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k+1][j][i] + Phi_eff_rpz
-                            - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   - Phi_eff_r   ) / dh;
-               }
-               else
-               {
-                  const double rmz = SQRT( SQR(dx) + SQR(dy) + SQR(dz - dh) );
-                  const double Phi_eff_rmz = Mis_InterpolateFromTable_Ext( Phi_GREP, rmz );
-
-                  dPhi_dz = ( amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k][j][i]   + Phi_eff_r
-                            - amr->patch[ amr->FluSg[lv] ][lv][PID]->pot[k-1][j][i] - Phi_eff_rmz  ) / dh;
-                  dPhi_dz_1st = dPhi_dz;
-               }
-
-               const double yz_1st = dv * ( 2.0 * _dens * momy * momz
-                                    -        dens * ( dy * dPhi_dz_1st + dz * dPhi_dy_1st)    );
-
-               const double yz_2nd = dv * ( 2.0 * _dens * momy * momz
-                                    -        dens * ( dy * dPhi_dz + dz * dPhi_dy)    );
-
-               fprintf( file_Check_1st, "%2d %12d %17.7e %17.7e %17.7e %17.7e %17.7e %17.7e\n",
-                        lv, PID, dx, dy, dz, dPhi_dy_1st, dPhi_dz_1st, coe * yz_1st);
-
-               fprintf( file_Check_2nd, "%2d %12d %17.7e %17.7e %17.7e %17.7e %17.7e %17.7e\n",
-                        lv, PID, dx, dy, dz, dPhi_dy, dPhi_dz, coe * yz_2nd);
-
-            }}} // i,j,k
-         } // for (int PID=0; PID<amr->NPatchComma[lv][1]; PID++)
-      } // for (int lv=0; lv<NLEVEL; lv++)
-   } // OpenMP parallel region
-
-
-// free per-thread arrays
-   Aux_DeallocateArray2D( OMP_QuadMom_2nd );
-
-
-
-// collect data from all ranks (in-place reduction)
-#  ifndef SERIAL
-   if ( MPI_Rank == 0 )   MPI_Reduce( MPI_IN_PLACE, QuadMom_2nd, NData, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD );
-   else                   MPI_Reduce( QuadMom_2nd,  NULL,        NData, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD );
-#  endif // ifndef SERIAL
-
-
-   fclose( file_Check_1st );
-   fclose( file_Check_2nd );
-
-
-#  endif // if ( defined GRAVITY  &&  defined GREP )
-
-} // FUNCTION : Record_GWSignal_checkyz()
-
+} // FUNCTION : Record_GWSignal_2nd()
 
