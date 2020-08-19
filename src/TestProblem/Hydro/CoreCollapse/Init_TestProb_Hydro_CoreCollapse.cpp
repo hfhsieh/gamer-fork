@@ -13,8 +13,8 @@ static double rot_omega;                      // Initial rotational speed       
 static double rot_A;                          // Scale factor of the rotation              [km]
 static double Bfield_Ab;                      // magnetic field strength                          [1e15]
 static double Bfield_np;                      // dependence on the density                        [0.0]
-static int    GW_OUTPUT_OPT;                   // output GW signal (0=off)                           [0]
-static double GW_OUTPUT_DT;                    // output GW signals every GW_OUTPUT_DT time interval [0.0]
+static int    GW_OUTPUT_OPT;                  // output GW signal (0=off)                           [0]
+static double GW_OUTPUT_DT;                   // output GW signals every GW_OUTPUT_DT time interval [0.0]
 
 // Parameters for the progenitor model
 static double *Progenitor_Prof = NULL; // radial progenitor model
@@ -741,8 +741,8 @@ void Record_GWSignal_2nd()
                double dPhi_dx, dPhi_dy, dPhi_dz;
 
 //             dPhi_dx
-               const double rpx = SQRT( SQR(dx + 1.0*dh) + SQR(dy) + SQR(dz) );
-               const double rmx = SQRT( SQR(dx - 1.0*dh) + SQR(dy) + SQR(dz) );
+               const double rpx = SQRT( SQR(dx + dh) + SQR(dy) + SQR(dz) );
+               const double rmx = SQRT( SQR(dx - dh) + SQR(dy) + SQR(dz) );
                const double Phi_eff_rpx = Mis_InterpolateFromTable_Ext( Phi_GREP, rpx );
                const double Phi_eff_rmx = Mis_InterpolateFromTable_Ext( Phi_GREP, rmx );
 
@@ -764,8 +764,8 @@ void Record_GWSignal_2nd()
                }
 
 //             dPhi_dy
-               const double rpy = SQRT( SQR(dx) + SQR(dy + 1.0*dh) + SQR(dz) );
-               const double rmy = SQRT( SQR(dx) + SQR(dy - 1.0*dh) + SQR(dz) );
+               const double rpy = SQRT( SQR(dx) + SQR(dy + dh) + SQR(dz) );
+               const double rmy = SQRT( SQR(dx) + SQR(dy - dh) + SQR(dz) );
                const double Phi_eff_rpy = Mis_InterpolateFromTable_Ext( Phi_GREP, rpy );
                const double Phi_eff_rmy = Mis_InterpolateFromTable_Ext( Phi_GREP, rmy );
 
@@ -787,8 +787,8 @@ void Record_GWSignal_2nd()
                }
 
 //             dPhi_dz
-               const double rpz = SQRT( SQR(dx) + SQR(dy) + SQR(dz + 1.0*dh) );
-               const double rmz = SQRT( SQR(dx) + SQR(dy) + SQR(dz - 1.0*dh) );
+               const double rpz = SQRT( SQR(dx) + SQR(dy) + SQR(dz + dh) );
+               const double rmz = SQRT( SQR(dx) + SQR(dy) + SQR(dz - dh) );
                const double Phi_eff_rpz = Mis_InterpolateFromTable_Ext( Phi_GREP, rpz );
                const double Phi_eff_rmz = Mis_InterpolateFromTable_Ext( Phi_GREP, rmz );
 

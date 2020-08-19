@@ -837,8 +837,8 @@ void Record_GWSignal_2nd()
                double dPhi_dx, dPhi_dy, dPhi_dz;
 
 //             dPhi_dx
-               const double rpx = SQRT( SQR(dx + 1.0*dh) + SQR(dy) + SQR(dz) );
-               const double rmx = SQRT( SQR(dx - 1.0*dh) + SQR(dy) + SQR(dz) );
+               const double rpx = SQRT( SQR(dx + dh) + SQR(dy) + SQR(dz) );
+               const double rmx = SQRT( SQR(dx - dh) + SQR(dy) + SQR(dz) );
                const double Phi_eff_rpx = Mis_InterpolateFromTable_Ext( Phi_GREP, rpx );
                const double Phi_eff_rmx = Mis_InterpolateFromTable_Ext( Phi_GREP, rmx );
 
@@ -860,8 +860,8 @@ void Record_GWSignal_2nd()
                }
 
 //             dPhi_dy
-               const double rpy = SQRT( SQR(dx) + SQR(dy + 1.0*dh) + SQR(dz) );
-               const double rmy = SQRT( SQR(dx) + SQR(dy - 1.0*dh) + SQR(dz) );
+               const double rpy = SQRT( SQR(dx) + SQR(dy + dh) + SQR(dz) );
+               const double rmy = SQRT( SQR(dx) + SQR(dy - dh) + SQR(dz) );
                const double Phi_eff_rpy = Mis_InterpolateFromTable_Ext( Phi_GREP, rpy );
                const double Phi_eff_rmy = Mis_InterpolateFromTable_Ext( Phi_GREP, rmy );
 
@@ -883,8 +883,8 @@ void Record_GWSignal_2nd()
                }
 
 //             dPhi_dz
-               const double rpz = SQRT( SQR(dx) + SQR(dy) + SQR(dz + 1.0*dh) );
-               const double rmz = SQRT( SQR(dx) + SQR(dy) + SQR(dz - 1.0*dh) );
+               const double rpz = SQRT( SQR(dx) + SQR(dy) + SQR(dz + dh) );
+               const double rmz = SQRT( SQR(dx) + SQR(dy) + SQR(dz - dh) );
                const double Phi_eff_rpz = Mis_InterpolateFromTable_Ext( Phi_GREP, rpz );
                const double Phi_eff_rmz = Mis_InterpolateFromTable_Ext( Phi_GREP, rmz );
 
