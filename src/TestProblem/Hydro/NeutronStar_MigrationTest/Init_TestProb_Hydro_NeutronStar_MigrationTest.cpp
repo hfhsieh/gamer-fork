@@ -912,13 +912,13 @@ void Record_GWSignal_2nd()
                OMP_QuadMom_2nd[TID][0] += dv * ( 2.0 * _dens * momx * momx - (2.0 / 3.0) * trace
                                                - 2.0 *  dens * dx * dPhi_dx                      );  // xx
                OMP_QuadMom_2nd[TID][1] += dv * ( 2.0 * _dens * momx * momy
-                                               -        dens * ( dx * dPhi_dy + dy * dPhi_dx)    );  // xy
+                                               -        dens * ( dx * dPhi_dy + dy * dPhi_dx )   );  // xy
                OMP_QuadMom_2nd[TID][2] += dv * ( 2.0 * _dens * momx * momz
-                                               -        dens * ( dx * dPhi_dz + dz * dPhi_dx)    );  // xz
+                                               -        dens * ( dx * dPhi_dz + dz * dPhi_dx )   );  // xz
                OMP_QuadMom_2nd[TID][3] += dv * ( 2.0 * _dens * momy * momy - (2.0 / 3.0) * trace
                                                - 2.0 *  dens * dy * dPhi_dy                      );  // yy
                OMP_QuadMom_2nd[TID][4] += dv * ( 2.0 * _dens * momy * momz
-                                               -        dens * ( dy * dPhi_dz + dz * dPhi_dy)    );  // yz
+                                               -        dens * ( dy * dPhi_dz + dz * dPhi_dy )   );  // yz
                OMP_QuadMom_2nd[TID][5] += dv * ( 2.0 * _dens * momz * momz - (2.0 / 3.0) * trace
                                                - 2.0 *  dens * dz * dPhi_dz                      );  // zz
 
