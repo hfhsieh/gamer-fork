@@ -685,10 +685,11 @@ void Record_GWSignal_1st()
 
 
 // sum over all OpenMP threads
-   for (int b=0; b<NData; b++) {
-   for (int t=0; t<NT; t++)    {
+   for (int b=0; b<NData; b++)
+   for (int t=0; t<NT; t++)
+   {
       QuadMom_1st[b] += OMP_QuadMom_1st[t][b];
-   }}
+   }
 
 // free per-thread arrays
    Aux_DeallocateArray2D( OMP_QuadMom_1st );
@@ -822,19 +823,19 @@ void Record_GWSignal_2nd()
          }
 
 //       record profile parameters
-         for (int d=0; d<3; d++)    QuadMom_Prof[p]->Center[d] = Center[d];
+         for (int d=0; d<3; d++)   QuadMom_Prof[p]->Center[d] = Center[d];
 
          QuadMom_Prof[p]->LogBin = GREP_LOGBIN;
 
-         if ( GREP_LOGBIN )  QuadMom_Prof[p]->LogBinRatio = GREP_LOGBINRATIO;
+         if ( GREP_LOGBIN )   QuadMom_Prof[p]->LogBinRatio = GREP_LOGBINRATIO;
 
          QuadMom_Prof[p]->AllocateMemory();
 
 //       record radial coordinates
          if ( GREP_LOGBIN )
-            for (int b=0; b<QuadMom_Prof[0]->NBin; b++)    QuadMom_Prof[p]->Radius[b] = dr_min*pow( GREP_LOGBINRATIO, b-0.5 );
+            for (int b=0; b<QuadMom_Prof[0]->NBin; b++)   QuadMom_Prof[p]->Radius[b] = dr_min*pow( GREP_LOGBINRATIO, b-0.5 );
          else
-            for (int b=0; b<QuadMom_Prof[0]->NBin; b++)    QuadMom_Prof[p]->Radius[b] = (b+0.5)*dr_min;
+            for (int b=0; b<QuadMom_Prof[0]->NBin; b++)   QuadMom_Prof[p]->Radius[b] = (b+0.5)*dr_min;
 
       } // for (int p=0; p<NData; p++)
 
@@ -857,11 +858,12 @@ void Record_GWSignal_2nd()
 
       if ( GW_OUTPUT_VERBOSE )
       {
-         for (int p=0; p<NData; p++)                 {
-         for (int b=0; b<QuadMom_Prof[0]->NBin; b++) {
+         for (int p=0; p<NData; p++)
+         for (int b=0; b<QuadMom_Prof[0]->NBin; b++)
+         {
             OMP_Data  [p][TID][b] = 0.0;
             OMP_NCell [p][TID][b] = 0;
-         }}
+         }
       }
 
 
@@ -1047,10 +1049,11 @@ void Record_GWSignal_2nd()
 
 
 // sum over all OpenMP threads
-   for (int b=0; b<NData; b++) {
-   for (int t=0; t<NT; t++)    {
+   for (int b=0; b<NData; b++)
+   for (int t=0; t<NT; t++)
+   {
       QuadMom_2nd[b] += OMP_QuadMom_2nd[t][b];
-   }}
+   }
 
 // free per-thread arrays
    Aux_DeallocateArray2D( OMP_QuadMom_2nd );
@@ -1173,8 +1176,7 @@ void Record_GWSignal_2nd()
          }
 
 //       reset the total number of bins
-         for (int p=0; p<NData; p++)
-            QuadMom_Prof[p]->NBin -= stride;
+         for (int p=0; p<NData; p++)   QuadMom_Prof[p]->NBin -= stride;
       } // for (int b=0; b<QuadMom_Prof->NBin; b++)
 
 
@@ -1201,19 +1203,22 @@ void Record_GWSignal_2nd()
 
          FILE *file_QuadMom_Prof = fopen( filename_QuadMom_Prof, "a" );
 
-         for (int b=0; b<QuadMom_Prof[0]->NBin; b++) {
-               fprintf( file_QuadMom_Prof, "%5d %8ld %15.7e",b, QuadMom_Prof[0]->NCell[b], QuadMom_Prof[0]->Radius[b] * UNIT_L );
-
-            for (int p=0; p<NData; p++)
-               fprintf( file_QuadMom_Prof, "%16.7e", QuadMom_Prof[p]->Data[b] * coe * UNIT_QuadMom_2nd );
-
-               fprintf( file_QuadMom_Prof, "\n" );
+         for (int b=0; b<QuadMom_Prof[0]->NBin; b++)
+         {
+                                          fprintf( file_QuadMom_Prof, "%5d %8ld %15.7e",
+                                                   b, QuadMom_Prof[0]->NCell[b], QuadMom_Prof[0]->Radius[b] * UNIT_L );
+            for (int p=0; p<NData; p++)   fprintf( file_QuadMom_Prof, "%16.7e",
+                                                   QuadMom_Prof[p]->Data[b] * coe * UNIT_QuadMom_2nd );
+                                          fprintf( file_QuadMom_Prof, "\n" );
          }
 
          fclose( file_QuadMom_Prof );
 
       } // if ( MPI_Rank == 0 )
-   }
+
+//    free memory
+      for (int p=0; p<NData; p++)   QuadMom_Prof[p]->FreeMemory();
+   } // if ( GW_OUTPUT_VERBOSE )
 
 #  endif // if ( defined GRAVITY  &&  defined GREP )
 
