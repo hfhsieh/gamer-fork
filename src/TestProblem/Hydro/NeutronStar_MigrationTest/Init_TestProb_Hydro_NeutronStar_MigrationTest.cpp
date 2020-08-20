@@ -12,6 +12,7 @@ static double  Bfield_np;                       // dependence on the density    
 
 // Parameters for GW emissions output
 static int     GW_OUTPUT_OPT;                   // output GW signal (0=off)                           [0]
+static int     GW_OUTPUT_VERBOSE;               // output spherically summed GW signal (0=off)        [0]
 static double  GW_OUTPUT_DT;                    // output GW signals every GW_OUTPUT_DT time interval [0.0]
 
 // Parameters for initial condition
@@ -127,6 +128,7 @@ void SetParameter()
 //   ReadPara->Add( "var_str",            var_str,               Useless_str,   Useless_str,      Useless_str       );
    ReadPara->Add( "NeutronStar_ICFile",   NeutronStar_ICFile,    Useless_str,   Useless_str,      Useless_str       );
    ReadPara->Add( "GW_OUTPUT_OPT",       &GW_OUTPUT_OPT,         0,             0,                NoMax_int         );
+   ReadPara->Add( "GW_OUTPUT_VERBOSE",   &GW_OUTPUT_VERBOSE,     0,             0,                NoMax_int         );
    ReadPara->Add( "GW_OUTPUT_DT",        &GW_OUTPUT_DT,          0.0,           0.0,              NoMax_double      );
 #  ifdef MHD
    ReadPara->Add( "Bfield_Ab",           &Bfield_Ab,             1.0e15,        0.0,              NoMax_double      );
@@ -169,6 +171,7 @@ void SetParameter()
       Aux_Message( stdout, "  test problem ID           = %d\n",      TESTPROB_ID );
       Aux_Message( stdout, "  NeutronStar_ICFile        = %s\n",      NeutronStar_ICFile );
       Aux_Message( stdout, "  GW_OUTPUT_OPT             = %d\n",      GW_OUTPUT_OPT );
+      Aux_Message( stdout, "  GW_OUTPUT_VERBOSE         = %d\n",      GW_OUTPUT_VERBOSE );
       Aux_Message( stdout, "  GW_OUTPUT_DT              = %13.7e\n",  GW_OUTPUT_DT );
 #     ifdef MHD
       Aux_Message( stdout, "  Bfield_Ab                 = %13.7e\n",  Bfield_Ab );
@@ -773,6 +776,74 @@ void Record_GWSignal_2nd()
    Aux_AllocateArray2D( OMP_QuadMom_2nd, NT, NData );
 
 
+// compute and output the spherically summed GW signal if GW_OUTPUT_VERBOSE is enabled
+   Profile_t *QuadMom_Prof[NData];
+   double dr_min, r_max, Center[3];
+   double ***OMP_Data=NULL;
+   long   ***OMP_NCell=NULL;
+
+
+   if ( GW_OUTPUT_VERBOSE )
+   {
+//    use GREP parameters to set up the GW signal profiles
+      switch ( GREP_CENTER_METHOD )
+      {
+         case 1:
+            for (int i=0; i<3; i++)   Center[i] = amr->BoxCenter[i];
+         break;
+
+         default:
+            Aux_Error( ERROR_INFO, "incorrect parameter %s = %d !!\n", "GREP_CENTER_METHOD", GREP_CENTER_METHOD );
+      }
+
+      dr_min = ( GREP_MINBINSIZE > 0.0 ) ? GREP_MINBINSIZE : amr->dh[MAX_LEVEL];
+      r_max  = ( GREP_MAXRADIUS  > 0.0 ) ? GREP_MAXRADIUS
+                                         : SQRT( SQR( MAX( amr->BoxSize[0] - Center[0], Center[0] ) )
+                                         +       SQR( MAX( amr->BoxSize[1] - Center[1], Center[1] ) )
+                                         +       SQR( MAX( amr->BoxSize[2] - Center[2], Center[2] ) ) );
+
+//    initialize the profile objects
+      for (int p=0; p<NData; p++)
+      {
+
+         QuadMom_Prof[p] = new Profile_t();
+
+//       get the total number of radial bins and the corresponding maximum radius
+         if ( GREP_LOGBIN )
+         {
+            QuadMom_Prof[p]->NBin      = int( log(r_max/dr_min)/log(GREP_LOGBINRATIO) ) + 2;
+            QuadMom_Prof[p]->MaxRadius = dr_min*pow( GREP_LOGBINRATIO, QuadMom_Prof[p]->NBin-1 );
+         }
+
+         else // linear bin
+         {
+            QuadMom_Prof[p]->NBin      = (int)ceil( r_max / dr_min );
+            QuadMom_Prof[p]->MaxRadius = dr_min*QuadMom_Prof[p]->NBin;
+         }
+
+//       record profile parameters
+         for (int d=0; d<3; d++)    QuadMom_Prof[p]->Center[d] = Center[d];
+
+         QuadMom_Prof[p]->LogBin = GREP_LOGBIN;
+
+         if ( GREP_LOGBIN )  QuadMom_Prof[p]->LogBinRatio = GREP_LOGBINRATIO;
+
+         QuadMom_Prof[p]->AllocateMemory();
+
+//       record radial coordinates
+         if ( GREP_LOGBIN )
+            for (int b=0; b<QuadMom_Prof[0]->NBin; b++)    QuadMom_Prof[p]->Radius[b] = dr_min*pow( GREP_LOGBINRATIO, b-0.5 );
+         else
+            for (int b=0; b<QuadMom_Prof[0]->NBin; b++)    QuadMom_Prof[p]->Radius[b] = (b+0.5)*dr_min;
+
+      } // for (int p=0; p<NData; p++)
+
+
+      Aux_AllocateArray3D( OMP_Data,  NData, NT, QuadMom_Prof[0]->NBin );
+      Aux_AllocateArray3D( OMP_NCell, NData, NT, QuadMom_Prof[0]->NBin );
+   }
+
+
 #  pragma omp parallel
    {
 #     ifdef OPENMP
@@ -783,6 +854,16 @@ void Record_GWSignal_2nd()
 
 //    initialize arrays
       for (int b=0; b<NData; b++)   OMP_QuadMom_2nd[TID][b] = 0.0;
+
+      if ( GW_OUTPUT_VERBOSE )
+      {
+         for (int p=0; p<NData; p++)                 {
+         for (int b=0; b<QuadMom_Prof[0]->NBin; b++) {
+            OMP_Data  [p][TID][b] = 0.0;
+            OMP_NCell [p][TID][b] = 0;
+         }}
+      }
+
 
       for (int lv=0; lv<NLEVEL; lv++)
       {
@@ -909,18 +990,53 @@ void Record_GWSignal_2nd()
                const double trace = _dens * ( SQR(momx) + SQR(momy) + SQR(momz) )
                                   -  dens * ( dx * dPhi_dx + dy * dPhi_dy + dz * dPhi_dz );
 
-               OMP_QuadMom_2nd[TID][0] += dv * ( 2.0 * _dens * momx * momx - (2.0 / 3.0) * trace
-                                               - 2.0 *  dens * dx * dPhi_dx                      );  // xx
-               OMP_QuadMom_2nd[TID][1] += dv * ( 2.0 * _dens * momx * momy
-                                               -        dens * ( dx * dPhi_dy + dy * dPhi_dx )   );  // xy
-               OMP_QuadMom_2nd[TID][2] += dv * ( 2.0 * _dens * momx * momz
-                                               -        dens * ( dx * dPhi_dz + dz * dPhi_dx )   );  // xz
-               OMP_QuadMom_2nd[TID][3] += dv * ( 2.0 * _dens * momy * momy - (2.0 / 3.0) * trace
-                                               - 2.0 *  dens * dy * dPhi_dy                      );  // yy
-               OMP_QuadMom_2nd[TID][4] += dv * ( 2.0 * _dens * momy * momz
-                                               -        dens * ( dy * dPhi_dz + dz * dPhi_dy )   );  // yz
-               OMP_QuadMom_2nd[TID][5] += dv * ( 2.0 * _dens * momz * momz - (2.0 / 3.0) * trace
-                                               - 2.0 *  dens * dz * dPhi_dz                      );  // zz
+               const double QuadMom_xx = dv * ( 2.0 * _dens * momx * momx - (2.0 / 3.0) * trace
+                                              - 2.0 *  dens * dx * dPhi_dx                      );  // xx
+               const double QuadMom_xy = dv * ( 2.0 * _dens * momx * momy
+                                              -        dens * ( dx * dPhi_dy + dy * dPhi_dx )   );  // xy
+               const double QuadMom_xz = dv * ( 2.0 * _dens * momx * momz
+                                              -        dens * ( dx * dPhi_dz + dz * dPhi_dx )   );  // xz
+               const double QuadMom_yy = dv * ( 2.0 * _dens * momy * momy - (2.0 / 3.0) * trace
+                                              - 2.0 *  dens * dy * dPhi_dy                      );  // yy
+               const double QuadMom_yz = dv * ( 2.0 * _dens * momy * momz
+                                              -        dens * ( dy * dPhi_dz + dz * dPhi_dy )   );  // yz
+               const double QuadMom_zz = dv * ( 2.0 * _dens * momz * momz - (2.0 / 3.0) * trace
+                                              - 2.0 *  dens * dz * dPhi_dz                      );  // zz
+
+               OMP_QuadMom_2nd[TID][0] += QuadMom_xx;
+               OMP_QuadMom_2nd[TID][1] += QuadMom_xy;
+               OMP_QuadMom_2nd[TID][2] += QuadMom_xz;
+               OMP_QuadMom_2nd[TID][3] += QuadMom_yy;
+               OMP_QuadMom_2nd[TID][4] += QuadMom_yz;
+               OMP_QuadMom_2nd[TID][5] += QuadMom_zz;
+
+
+//             store the spherically summed profiles
+               if ( GW_OUTPUT_VERBOSE )
+               {
+                  const double dx = x - Center[0];
+                  const double dy = y - Center[1];
+                  const double dz = z - Center[2];
+                  const double r = SQRT( SQR(dx) + SQR(dy) + SQR(dz) );
+
+                  if ( r <= QuadMom_Prof[0]->MaxRadius )
+                  {
+                     const int bin = ( GREP_LOGBIN ) ? (  (r<dr_min) ? 0 : int( log(r/dr_min)/log(GREP_LOGBINRATIO) ) + 1  )
+                                                     : int( r/dr_min );
+//                   prevent from round-off errors
+                     if ( bin >= QuadMom_Prof[0]->NBin )   continue;
+
+//                   store the data only
+                     OMP_Data[0][TID][bin] += QuadMom_xx;
+                     OMP_Data[1][TID][bin] += QuadMom_xy;
+                     OMP_Data[2][TID][bin] += QuadMom_xz;
+                     OMP_Data[3][TID][bin] += QuadMom_yy;
+                     OMP_Data[4][TID][bin] += QuadMom_yz;
+                     OMP_Data[5][TID][bin] += QuadMom_zz;
+
+                     for (int p=0; p<NData; p++)   OMP_NCell [p][TID][bin] ++;
+                  }
+               }
 
             }}} // i,j,k
          }
@@ -987,6 +1103,117 @@ void Record_GWSignal_2nd()
       fclose( file_QuadMom_2nd );
 
    } // if ( MPI_Rank == 0 )
+
+
+// postprocess and output the spherically summed profiles
+   if ( GW_OUTPUT_VERBOSE )
+   {
+//    sum over all OpenMP threads
+      for (int p=0; p<NData; p++)
+      {
+         for (int b=0; b<QuadMom_Prof[0]->NBin; b++)
+         {
+            QuadMom_Prof[p]->Data  [b]  = OMP_Data  [p][0][b];
+            QuadMom_Prof[p]->NCell [b]  = OMP_NCell [p][0][b];
+         }
+
+         for (int t=1; t<NT; t++)
+         for (int b=0; b<QuadMom_Prof[0]->NBin; b++)
+         {
+            QuadMom_Prof[p]->Data  [b] += OMP_Data  [p][t][b];
+            QuadMom_Prof[p]->NCell [b] += OMP_NCell [p][t][b];
+         }
+      }
+
+      Aux_DeallocateArray3D( OMP_Data );
+
+//    collect data from all ranks (in-place reduction)
+#     ifndef SERIAL
+      for (int p=0; p<NData; p++)
+      {
+         const int NBin = QuadMom_Prof[p]->NBin;
+
+         if ( MPI_Rank == 0 )
+         {
+            MPI_Reduce( MPI_IN_PLACE,           QuadMom_Prof[p]->Data,  NBin, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD );
+            MPI_Reduce( MPI_IN_PLACE,           QuadMom_Prof[p]->NCell, NBin, MPI_LONG,   MPI_SUM, 0, MPI_COMM_WORLD );
+         }
+
+         else
+         {
+            MPI_Reduce( QuadMom_Prof[p]->Data,  NULL,                   NBin, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD );
+            MPI_Reduce( QuadMom_Prof[p]->NCell, NULL,                   NBin, MPI_LONG,   MPI_SUM, 0, MPI_COMM_WORLD );
+         }
+      }
+#     endif
+
+
+// remove the empty bins
+      for (int b=0; b<QuadMom_Prof[0]->NBin; b++)
+      {
+         if ( QuadMom_Prof[0]->NCell[b] != 0L )   continue;
+
+//       remove consecutive empty bins at the same time for better performance
+         int b_up;
+         for (b_up=b+1; b_up<QuadMom_Prof[0]->NBin; b_up++)
+            if ( QuadMom_Prof[0]->NCell[b_up] != 0L )   break;
+
+         const int stride = b_up - b;
+
+         for (b_up=b+stride; b_up<QuadMom_Prof[0]->NBin; b_up++)
+         {
+            const int b_up_ms = b_up - stride;
+
+            for (int p=0; p<NData; p++)
+            {
+               QuadMom_Prof[p]->Radius[b_up_ms] = QuadMom_Prof[p]->Radius[b_up];
+               QuadMom_Prof[p]->Data  [b_up_ms] = QuadMom_Prof[p]->Data  [b_up];
+               QuadMom_Prof[p]->NCell [b_up_ms] = QuadMom_Prof[p]->NCell [b_up];
+            }
+         }
+
+//       reset the total number of bins
+         for (int p=0; p<NData; p++)
+            QuadMom_Prof[p]->NBin -= stride;
+      } // for (int b=0; b<QuadMom_Prof->NBin; b++)
+
+
+//    output to file
+      if ( MPI_Rank == 0 )
+      {
+
+         char filename_QuadMom_Prof[50];
+         sprintf( filename_QuadMom_Prof, "Record__QuadMom_Prof_%06ld", Step );
+
+//       file header
+         if ( Aux_CheckFileExist(filename_QuadMom_Prof) )
+         {
+             Aux_Message( stderr, "WARNING : file \"%s\" already exists !!\n", filename_QuadMom_Prof );
+         }
+         else
+         {
+             FILE *file_QuadMom_Prof = fopen( filename_QuadMom_Prof, "w" );
+             fprintf( file_QuadMom_Prof, "# Time : %13.7e,  Step : %8ld\n", Time[0] * UNIT_T, Step );
+             fprintf( file_QuadMom_Prof, "#%4s %8s %15s %15s %15s %15s %15s %15s %15s\n",
+                                         "Bin", "NCell", "Radius", "xx", "xy", "xz", "yy", "yz", "zz" );
+             fclose( file_QuadMom_Prof );
+         }
+
+         FILE *file_QuadMom_Prof = fopen( filename_QuadMom_Prof, "a" );
+
+         for (int b=0; b<QuadMom_Prof[0]->NBin; b++) {
+               fprintf( file_QuadMom_Prof, "%5d %8ld %15.7e",b, QuadMom_Prof[0]->NCell[b], QuadMom_Prof[0]->Radius[b] * UNIT_L );
+
+            for (int p=0; p<NData; p++)
+               fprintf( file_QuadMom_Prof, "%16.7e", QuadMom_Prof[p]->Data[b] * coe * UNIT_QuadMom_2nd );
+
+               fprintf( file_QuadMom_Prof, "\n" );
+         }
+
+         fclose( file_QuadMom_Prof );
+
+      } // if ( MPI_Rank == 0 )
+   }
 
 #  endif // if ( defined GRAVITY  &&  defined GREP )
 
