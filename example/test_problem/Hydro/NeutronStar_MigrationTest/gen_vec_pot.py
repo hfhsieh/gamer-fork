@@ -16,43 +16,76 @@ as those used in GAMER. So:
 The file should also be named "B_IC" for GAMER to recognize it.
 
 It requires NumPy, h5py, and HDF5 to be installed.
+
+Use regular expression for parsing the files Input__Parameter and Input__TestProb
+to obtain the required parameters
 """
 
 import h5py
+import re
 import numpy as np
 
+
+reg_pattern = r"\s*([-+]?\d+\.?\d*[eE]?[-+]?\d*)"  # patterns for all numeric numbers
+
+### use regular expression to get the setting in Input__Parameter
+par = open("Input__Parameter").read()
+
 # UNIT
-UNIT_L = 1e5
-UNIT_M = 1.989e33
-UNIT_T = 1e-3
-#UNIT_P = UNIT_M*UNIT_L/UNIT_T**2
-UNIT_P = UNIT_M/UNIT_L/UNIT_T**2  # use energy density unit same as that in GAMER code
+UNIT_L = re.findall(r"UNIT_L" + reg_pattern, par)
+UNIT_M = re.findall(r"UNIT_M" + reg_pattern, par)
+UNIT_T = re.findall(r"UNIT_T" + reg_pattern, par)
+
+UNIT_L = float(UNIT_L[0])
+UNIT_M = float(UNIT_M[0])
+UNIT_T = float(UNIT_T[0])
+UNIT_P = UNIT_M / UNIT_L / UNIT_T**2  # use energy density unit same as that in GAMER code
 UNIT_B = np.sqrt(4 * np.pi * UNIT_P)
-#UNIT_A = UNIT_B * UNIT_L
 UNIT_A = UNIT_B  # UNIT_L is not required if A is obtained from dimensionless coordinate (xx, yy, and zz)
 
-# Read initial condition of denisty and pressure
-fn_tovstar = "tovstar_short"
+# simulation scale (assume the number of base-level cells are the same in each direction)
+BOX_SIZE = re.findall(r"BOX_SIZE" + reg_pattern, par)
+NX0_TOT  = re.findall(r"NX0_TOT_X" + reg_pattern, par)
 
-radius, dens, pres = np.genfromtxt(fn_tovstar, usecols = [0, 2, 3], unpack = 1)
+BOX_SIZE = float(BOX_SIZE[0])
+NX0_TOT  = int(NX0_TOT[0])
+
+
+### use regular expression to get the setting in Input__TestProb
+par_testprob = open("Input__TestProb").read()
+
+# parameters for B field
+Bfield_Ab = re.findall(r"Bfield_Ab" + reg_pattern, par_testprob)
+Bfield_np = re.findall(r"Bfield_np" + reg_pattern, par_testprob)
+
+Bfield_Ab = float(Bfield_Ab[0]) / UNIT_A
+Bfield_np = float(Bfield_np[0])
+
+
+### Read initial condition of denisty and pressure
+radius, dens, pres = np.genfromtxt("tovstar_short", usecols = [0, 2, 3], unpack = 1)
 radius /= UNIT_L
+
+# functions for interpolation
 interp_pres = lambda r: np.interp(r, radius, pres)
 interp_dens = lambda r: np.interp(r, radius, dens)
 
+# central density and pressure
 rho_c  = interp_dens(0.0)
 pres_c = interp_pres(0.0)
+
 
 # Number of cells along each dimension of the input grid.
 # This is somewhat arbitrary, but should be chosen in
 # such a way as to adequately resolve the vector potential.
 
-ddims = np.array([64 * 2**3]*3, dtype='int')
+ddims = np.array([NX0_TOT * 2**3]*3, dtype='int')
 
 # Left edge and right edge coordinates of the desired
 # simulation domain which will be used in GAMER.
 
 le = np.zeros(3)
-re = np.ones(3) * 100
+re = np.ones(3) * BOX_SIZE
 ce = 0.5 * (le + re)
 
 # Since we need to take derivatives of the vector potential
@@ -88,17 +121,12 @@ rr = np.sqrt(xx * xx + yy * yy + zz * zz)
 
 
 # Toy vector potential which depends on all three coordinates
-
-Ab = 0.0
-Ab /= UNIT_A
-n_p = 0.0
-
-factor_dens = (1.0 - interp_dens(rr) / rho_c)**n_p
+factor_dens = (1.0 - interp_dens(rr) / rho_c)**Bfield_np
 factor_pres = interp_pres(rr) / pres_c
 
-Ax = -yy * Ab * factor_dens * factor_pres
-Ay =  xx * Ab * factor_dens * factor_pres
-Az = 0.0 * zz
+Ax = -yy * Bfield_Ab * factor_dens * factor_pres
+Ay =  xx * Bfield_Ab * factor_dens * factor_pres
+Az =  0.0 * zz
 
 # Write the ICs to an HDF5 file
 
