@@ -97,7 +97,7 @@ extern OptRSolver1st_t  OPT__1ST_FLUX_CORR_SCHEME;
 extern bool             OPT__FLAG_PRES_GRADIENT, OPT__FLAG_LOHNER_ENGY, OPT__FLAG_LOHNER_PRES, OPT__FLAG_LOHNER_TEMP;
 extern bool             OPT__FLAG_VORTICITY, OPT__FLAG_JEANS, JEANS_MIN_PRES;
 extern int              OPT__CK_NEGATIVE, JEANS_MIN_PRES_LEVEL, JEANS_MIN_PRES_NCELL;
-extern double           MIN_DENS, MIN_PRES;
+extern double           MIN_DENS, MIN_PRES, MIN_EINT;
 #ifdef DUAL_ENERGY
 extern double           DUAL_ENERGY_SWITCH;
 #endif
@@ -237,7 +237,22 @@ extern double                SF_CREATE_STAR_MAX_STAR_MFRAC;
 #endif
 
 
-// (2-9) Supernova
+// (2-9) equation of state
+// =======================================================================================================
+#if ( MODEL == HYDRO )
+extern double EoS_AuxArray[EOS_NAUX_MAX];
+extern EoS_DE2P_t EoS_DensEint2Pres_CPUPtr;
+extern EoS_DP2E_t EoS_DensPres2Eint_CPUPtr;
+extern EoS_DP2C_t EoS_DensPres2CSqr_CPUPtr;
+#ifdef GPU
+extern EoS_DE2P_t EoS_DensEint2Pres_GPUPtr;
+extern EoS_DP2E_t EoS_DensPres2Eint_GPUPtr;
+extern EoS_DP2C_t EoS_DensPres2CSqr_GPUPtr;
+#endif
+#endif // HYDRO
+
+
+// (2-10) Supernova
 #if (EOS==NUCLEAR)
 extern bool   EOS_POSTBOUNCE;
 extern double EOS_BOUNCETIME;
@@ -259,7 +274,7 @@ extern double LB_HEATFACTOR;
 #endif
 
 
-// (2-10) GREP
+// (2-11) GREP
 #if ( defined GRAVITY  &&  defined GREP )
 extern int    GREP_CENTER_METHOD;
 extern int    GREP_MAXITER;
@@ -268,6 +283,7 @@ extern double GREP_LOGBINRATIO;
 extern double GREP_MAXRADIUS;
 extern double GREP_MINBINSIZE;
 #endif
+
 
 
 // 3. CPU (host) arrays for transferring data between CPU and GPU
@@ -295,7 +311,7 @@ extern double     (*h_Corner_Array_G [2])[3];
 extern char       (*h_DE_Array_G     [2])[PS1][PS1][PS1];
 #endif
 #ifdef MHD
-extern real       (*h_EngyB_Array_G  [2])[PS1][PS1][PS1];
+extern real       (*h_Emag_Array_G   [2])[PS1][PS1][PS1];
 #endif
 
 #ifdef UNSPLIT_GRAVITY
@@ -315,7 +331,7 @@ extern code_units Che_Units;
 #endif
 
 extern real        *h_dt_Array_T[2];
-extern real       (*h_Flu_Array_T[2])[NCOMP_FLUID][ CUBE(PS1) ];
+extern real       (*h_Flu_Array_T[2])[FLU_NIN_T][ CUBE(PS1) ];
 #ifdef GRAVITY
 extern real       (*h_Pot_Array_T[2])[ CUBE(GRA_NXT) ];
 #endif
@@ -325,14 +341,14 @@ extern real       (*h_Mag_Array_T[2])[NCOMP_MAG][ PS1P1*SQR(PS1) ];
 
 
 
-// 4. GPU (device) global memory arrays and timers
+// 4/5. GPU (device) global memory arrays and timers
 // ============================================================================================================
 /*** These global variables are NOT included here. Instead, they are included by individual files
      only if necessary. ***/
 
 
 
-// 5. global variables related to different fields
+// 6. global variables related to different fields
 // ============================================================================================================
 /*** Defined in Field.h ***/
 
