@@ -318,8 +318,10 @@ void SetGridIC( real fluid[], const double x, const double y, const double z, co
    // call EOS to get other variables
    // use temperature mode (1)
 
+#  if ( EOS == NUCLEAR )
    nuc_eos_C_short((dens*UNIT_D),&xtmp,ye,&xenr, &xprs, &xent, &xcs2, &xdedt, &xdpderho,
         &xdpdrhoe, &xmunu, 1, &keyerr, rfeps);
+#  endif
 
    if (keyerr != 0)
    {

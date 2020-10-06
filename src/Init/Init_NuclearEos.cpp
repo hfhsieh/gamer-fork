@@ -1,6 +1,8 @@
 #include "GAMER.h"
 #include "NuclearEos.h"
 
+#  if ( EOS == NUCLEAR )
+
 void Init_NuclearEos()
 {
   nuc_eos_C_ReadTable("LS220.h5");   // TODO: set table name as a runtime parameter
@@ -15,3 +17,5 @@ void Init_NuclearEos()
   //nuc_eos_C_testing();
 
 }
+
+#  endif

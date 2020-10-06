@@ -161,14 +161,6 @@ void Aux_TakeNote()
       fprintf( Note, "DUAL_ENERGY                     UNKNOWN\n" );
 #     endif
 
-#     if   ( EOS == IDEAL_GAS )
-      fprintf( Note, "EOS                             IDEAL_GAS\n" );
-#     elif ( EOS == NUCLEAR )
-      fprintf( Note, "EOS                             NUCLEAR\n" );
-#     else
-      fprintf( Note, "EOS                             UNKNOWN\n" );
-#     endif
-
 #     ifdef NEUTRINO_SCHEME
 #     if   ( NEUTRINO_SCHEME == LIGHTBULB )
       fprintf( Note, "NEUTRINO_SCHEME                 LIGHTBULB\n" );

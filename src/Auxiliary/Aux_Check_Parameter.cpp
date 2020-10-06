@@ -593,10 +593,6 @@ void Aux_Check_Parameter()
 #  endif
 #  endif // #ifdef DUAL_ENERGY
 
-#  if ( EOS != IDEAL_GAS  &&  EOS != NUCLEAR )
-#     error : ERROR : unsupported equation of state (IDEAL_GAS/NUCLEAR) !!
-#  endif
-
 #  if ( defined NEUTRINO_SCHEME  &&  NEUTRINO_SCHEME != LIGHTBULB  &&  NEUTRINO_SCHEME != IDSA  &&  NEUTRINO_SCHEME != M1 )
 #     error : ERROR : unsupported neutrino updating scheme (LIGHTBULB/IDSA/M1) !!
 #  endif

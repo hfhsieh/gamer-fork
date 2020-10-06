@@ -231,7 +231,6 @@ EoS_DE2P_t EoS_DensEint2Pres_GPUPtr = NULL;
 EoS_DP2E_t EoS_DensPres2Eint_GPUPtr = NULL;
 EoS_DP2C_t EoS_DensPres2CSqr_GPUPtr = NULL;
 #endif
-#endif // HYDRO
 
 // (2-10) Supernova
 # if (EOS == NUCLEAR)
@@ -263,6 +262,7 @@ double GREP_LOGBINRATIO;
 double GREP_MAXRADIUS;
 double GREP_MINBINSIZE;
 #endif
+#endif // HYDRO
 
 
 // 3. CPU (host) arrays for transferring data between CPU and GPU

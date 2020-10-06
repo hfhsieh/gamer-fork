@@ -76,8 +76,9 @@ SIMU_OPTION += -DRSOLVER=ROE
 # --> useless for RTVD
 SIMU_OPTION += -DNCOMP_PASSIVE_USER=0
 
-# equation of state: IDEAL_GAS/NUCLEAR
-SIMU_OPTION += -DEOS=NUCLEAR
+# equation of state: EOS_GAMMA/EOS_NUCLEAR/EOS_TABULAR/EOS_USER
+# --> must be set when MODEL=HYDRO
+SIMU_OPTION += -DEOS=EOS_GAMMA
 
 # enable Deleptonization
 SIMU_OPTION += -DDELEPTIONIZATION
@@ -85,13 +86,8 @@ SIMU_OPTION += -DDELEPTIONIZATION
 # nutrino transport scheme: LIGHTBULB/IDSA/M1
 SIMU_OPTION += -DNEUTRINO_SCHEME=LIGHTBULB
 
-
 # magnetohydrodynamics
 #SIMU_OPTION += -DMHD
-
-# equation of state: EOS_GAMMA/EOS_NUCLEAR/EOS_TABULAR/EOS_USER
-# --> must be set when MODEL=HYDRO
-SIMU_OPTION += -DEOS=EOS_GAMMA
 
 
 # (b-2) ELBDM options

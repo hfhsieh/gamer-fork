@@ -217,6 +217,7 @@ void SetGridIC( real fluid[], const double x, const double y, const double z, co
    const double *Table_Pres   = NeutronStar_Prof + 3*NeutronStar_NBin;
 
    double dens, velr, pres;
+   double momx, momy, momz, eint, etot;
 
    const double x0 = x - BoxCenter[0];
    const double y0 = y - BoxCenter[1];
@@ -227,12 +228,18 @@ void SetGridIC( real fluid[], const double x, const double y, const double z, co
    velr = Mis_InterpolateFromTable(NeutronStar_NBin, Table_R, Table_Velr, r);
    pres = Mis_InterpolateFromTable(NeutronStar_NBin, Table_R, Table_Pres, r);
 
+   momx = dens*velr*x0/r;
+   momy = dens*velr*y0/r;
+   momz = dens*velr*z0/r;
+
+   eint = EoS_DensPres2Eint_CPUPtr( dens, pres, NULL, EoS_AuxArray );   // assuming EoS requires no passive scalars
+   etot = Hydro_ConEint2Etot( dens, momx, momy, momz, eint, 0.0 );      // do NOT include magnetic energy here
+
    fluid[DENS] = dens;
-   fluid[MOMX] = dens*velr*x0/r;
-   fluid[MOMY] = dens*velr*y0/r;
-   fluid[MOMZ] = dens*velr*z0/r;
-   fluid[ENGY] = pres / ( GAMMA - 1.0 )
-               + 0.5*( SQR( fluid[MOMX] ) + SQR( fluid[MOMY] ) + SQR( fluid[MOMZ] ) ) / dens;
+   fluid[MOMX] = momx;
+   fluid[MOMY] = momy;
+   fluid[MOMZ] = momz;
+   fluid[ENGY] = etot;
 
 } // FUNCTION : SetGridIC
 

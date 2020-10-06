@@ -128,10 +128,9 @@ struct Makefile_t
    int RSolver;
 #  endif
    int DualEnergy;
-   int EoS;
-   int NeutrinoScheme;
    int Magnetohydrodynamics;
    int EoS;
+   int NeutrinoScheme;
 
 #  elif ( MODEL == ELBDM )
    int ConserveMass;
