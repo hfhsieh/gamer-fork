@@ -130,6 +130,7 @@ struct Makefile_t
    int DualEnergy;
    int Magnetohydrodynamics;
    int EoS;
+   int BarotropicEoS;
    int NeutrinoScheme;
 
 #  elif ( MODEL == ELBDM )
@@ -198,6 +199,7 @@ struct SymConst_t
    int    USG_NxtG;
 #  endif
 
+   int    ExtPot_BlockSize;
    int    Gra_BlockSize;
    int    ExtPotNAuxMax;
    int    ExtAccNAuxMax;
@@ -424,6 +426,7 @@ struct InputPara_t
 #  if ( MODEL == HYDRO )
    double Gamma;
    double MolecularWeight;
+   double IsoTemp;
    double MinMod_Coeff;
    int    Opt__LR_Limiter;
    int    Opt__1stFluxCorr;
@@ -465,6 +468,7 @@ struct InputPara_t
 #  if ( MODEL == HYDRO )
    double MinPres;
    double MinEint;
+   int    Opt__LastResortFloor;
    int    JeansMinPres;
    int    JeansMinPres_Level;
    int    JeansMinPres_NCell;
@@ -473,7 +477,7 @@ struct InputPara_t
    double DualEnergySwitch;
 #  endif
 
-// self-gravity
+// gravity
 #  ifdef GRAVITY
    double NewtonG;
 #  if   ( POT_SCHEME == SOR )
@@ -488,10 +492,11 @@ struct InputPara_t
 #  endif
    int    Pot_GPU_NPGroup;
    int    Opt__GraP5Gradient;
-   int    Opt__GravityType;
-   int    Opt__ExternalPot;
+   int    Opt__SelfGravity;
+   int    Opt__ExtAcc;
+   int    Opt__ExtPot;
    int    Opt__GravityExtraMass;
-#  endif
+#  endif // #ifdef GRAVITY
 
 // source terms
    int    Src_Deleptonization;
@@ -563,6 +568,7 @@ struct InputPara_t
    int    Opt__RefPot_IntScheme;
 #  endif
    double IntMonoCoeff;
+   int    IntOppSign0thOrder;
 
 // data dump
    int    Opt__Output_Total;
