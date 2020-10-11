@@ -28,9 +28,12 @@ static void   Record_CentralDens();
 static void   Record_GWSignal_1st();
 static void   Record_GWSignal_2nd();
 
-extern int        GREP_LvUpdate;
-extern int        GREPSg  [NLEVEL];
-extern Profile_t *Phi_eff [NLEVEL][2];
+#if ( defined GRAVITY  &&  defined GREP )
+extern void   Init_ExtPot_GREP();
+extern void   Poi_UserWorkBeforePoisson_GREP( const double Time, const int lv );
+#endif
+
+
 
 
 //-------------------------------------------------------------------------------------------------------
@@ -380,11 +383,11 @@ void Init_TestProb_Hydro_NeutronStar_MigrationTest()
    Init_User_Ptr                  = NULL; // option: none;                    example: none
    End_User_Ptr                   = NULL; // option: none;                    example: TestProblem/Hydro/ClusterMerger_vs_Flash/Init_TestProb_ClusterMerger_vs_Flash.cpp --> End_ClusterMerger()
    Src_User_Ptr                   = NULL; // option: SRC_USER
-#  ifdef GRAVITY
-   Init_ExtAccAuxArray_Ptr        = NULL; // option: OPT__GRAVITY_TYPE=2/3;   example: TestProblem/Hydro/Plummer/ExtAcc_Plummer.cpp
-#  endif
-   Init_ExtPotAuxArray_Ptr        = NULL; // option: OPT__EXTERNAL_POT;       example: SelfGravity/CPU_Gravity/CPU_ExtPot_PointMass.cpp
    Poi_AddExtraMassForGravity_Ptr = NULL; // option: OPT__GRAVITY_EXTRA_MASS; example: none
+#if ( defined GRAVITY  &&  defined GREP )
+   Init_ExtPot_Ptr                = Init_ExtPot_GREP;
+   Poi_UserWorkBeforePoisson_Ptr  = Poi_UserWorkBeforePoisson_GREP;
+#endif
 #  ifdef PARTICLE
    Par_Init_ByFunction_Ptr        = NULL; // option: PAR_INIT=1;              example: Particle/Par_Init_ByFunction.cpp
    Par_Init_Attribute_User_Ptr    = NULL; // set PAR_NATT_USER;               example: TestProblem/Hydro/AGORA_IsolatedGalaxy/Init_TestProb_Hydro_AGORA_IsolatedGalaxy.cpp --> AddNewParticleAttribute()
@@ -542,7 +545,7 @@ void Record_CentralDens()
 // collect data from all ranks
 # ifndef SERIAL
    {
-      double DataCoord_All[4 * MPI_NRank] = { 0.0 };
+      double DataCoord_All[4 * MPI_NRank];
 
       MPI_Allgather( &DataCoord, 4, MPI_DOUBLE, &DataCoord_All, 4, MPI_DOUBLE, MPI_COMM_WORLD );
 
@@ -604,12 +607,9 @@ static double Mis_InterpolateFromTable_Ext( Profile_t *Phi, const double r )
 
    double Phi_interp;
 
-   if ( r < rmin )
-      Phi_interp = Phi->Data[0];
-   else if ( r < rmax )
-      Phi_interp = Mis_InterpolateFromTable( NBin, Phi->Radius, Phi->Data, r );
-   else
-      Phi_interp = Phi->Data[NBin-1];
+   if      ( r < rmin )   Phi_interp = Phi->Data[0];
+   else if ( r < rmax )   Phi_interp = Mis_InterpolateFromTable( NBin, Phi->Radius, Phi->Data, r );
+   else                   Phi_interp = Phi->Data[NBin-1];
 
    return Phi_interp;
 
@@ -787,7 +787,7 @@ void Record_GWSignal_2nd()
 // compute and output the spherically summed GW signal if GW_OUTPUT_VERBOSE is enabled
    Profile_t *QuadMom_Prof[NData];
    double dr_min, r_max, Center[3];
-   double ***OMP_Data=NULL;
+   double ***OMP_Data =NULL;
    long   ***OMP_NCell=NULL;
 
 
@@ -876,16 +876,15 @@ void Record_GWSignal_2nd()
 
       for (int lv=0; lv<NLEVEL; lv++)
       {
-         Profile_t *Phi_GREP = Phi_eff[lv][ GREPSg[lv] ];
 
          const double dh = amr->dh[lv];
          const double dv = CUBE( dh );
 
-         const double TimeNew     = Time[lv];
-         const int    NTotal = amr->NPatchComma[lv][1] / 8;
-               int   *PID0_List   = new int [NTotal];
+         const double TimeNew   = Time[lv];
+         const int    NTotal    = amr->NPatchComma[lv][1] / 8;
+               int   *PID0_List = new int [NTotal];
 
-         for (int t=0; t<NTotal; t++)  PID0_List[t] = 8*t;
+         for (int t=0; t<NTotal; t++)   PID0_List[t] = 8*t;
 
 
          for (int Disp=0; Disp<NTotal; Disp+=NPG_Max)
@@ -920,81 +919,11 @@ void Record_GWSignal_2nd()
                const double momz  = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[MOMZ][k][j][i];
                const double _dens = 1.0 / dens;
 
-               const real (*PotPtr    )[PS1][PS1]         = amr->patch[ amr->PotSg[lv] ][lv][PID]->pot;
                const real (*PrepPotPtr)[GRA_NXT][GRA_NXT] = h_Pot_Array_P_Out[ArrayID][PID_IDX];
 
-               const double Phi_eff_r = Mis_InterpolateFromTable_Ext( Phi_GREP, r );
-               double dPhi_dx, dPhi_dy, dPhi_dz;
-
-//             dPhi_dx
-               const double rpx = SQRT( SQR(dx + dh) + SQR(dy) + SQR(dz) );
-               const double rmx = SQRT( SQR(dx - dh) + SQR(dy) + SQR(dz) );
-               const double Phi_eff_rpx = Mis_InterpolateFromTable_Ext( Phi_GREP, rpx );
-               const double Phi_eff_rmx = Mis_InterpolateFromTable_Ext( Phi_GREP, rmx );
-
-               switch (i)
-               {
-                  case 0:
-                     dPhi_dx = ( PotPtr    [ k][ j][ i+1] + Phi_eff_rpx
-                               - PrepPotPtr[kk][jj][ii-1] - Phi_eff_rmx ) / (2.0 * dh);
-                     break;
-
-                  case PS1 - 1:
-                     dPhi_dx = ( PrepPotPtr[kk][jj][ii+1] + Phi_eff_rpx
-                               - PotPtr    [ k][ j][ i-1] - Phi_eff_rmx ) / (2.0 * dh);
-                     break;
-
-                  default:
-                     dPhi_dx = ( PotPtr    [ k][ j][ i+1] + Phi_eff_rpx
-                               - PotPtr    [ k][ j][ i-1] - Phi_eff_rmx ) / (2.0 * dh);
-               }
-
-//             dPhi_dy
-               const double rpy = SQRT( SQR(dx) + SQR(dy + dh) + SQR(dz) );
-               const double rmy = SQRT( SQR(dx) + SQR(dy - dh) + SQR(dz) );
-               const double Phi_eff_rpy = Mis_InterpolateFromTable_Ext( Phi_GREP, rpy );
-               const double Phi_eff_rmy = Mis_InterpolateFromTable_Ext( Phi_GREP, rmy );
-
-               switch (j)
-               {
-                  case 0:
-                     dPhi_dy = ( PotPtr    [ k][ j+1][ i] + Phi_eff_rpy
-                               - PrepPotPtr[kk][jj-1][ii] - Phi_eff_rmy ) / (2.0 * dh);
-                     break;
-
-                  case PS1 - 1:
-                     dPhi_dy = ( PrepPotPtr[kk][jj+1][ii] + Phi_eff_rpy
-                               - PotPtr    [ k][ j-1][ i] - Phi_eff_rmy ) / (2.0 * dh);
-                     break;
-
-                  default:
-                     dPhi_dy = ( PotPtr    [ k][ j+1][ i] + Phi_eff_rpy
-                               - PotPtr    [ k][ j-1][ i] - Phi_eff_rmy ) / (2.0 * dh);
-               }
-
-//             dPhi_dz
-               const double rpz = SQRT( SQR(dx) + SQR(dy) + SQR(dz + dh) );
-               const double rmz = SQRT( SQR(dx) + SQR(dy) + SQR(dz - dh) );
-               const double Phi_eff_rpz = Mis_InterpolateFromTable_Ext( Phi_GREP, rpz );
-               const double Phi_eff_rmz = Mis_InterpolateFromTable_Ext( Phi_GREP, rmz );
-
-               switch (k)
-               {
-                  case 0:
-                     dPhi_dz = ( PotPtr    [ k+1][ j][ i] + Phi_eff_rpz
-                               - PrepPotPtr[kk-1][jj][ii] - Phi_eff_rmz ) / (2.0 * dh);
-                     break;
-
-                  case PS1 - 1:
-                     dPhi_dz = ( PrepPotPtr[kk+1][jj][ii] + Phi_eff_rpz
-                               - PotPtr    [ k-1][ j][ i] - Phi_eff_rmz ) / (2.0 * dh);
-                     break;
-
-                  default:
-                     dPhi_dz = ( PotPtr    [ k+1][ j][ i] + Phi_eff_rpz
-                               - PotPtr    [ k-1][ j][ i] - Phi_eff_rmz ) / (2.0 * dh);
-               }
-
+               const double dPhi_dx = ( PrepPotPtr[kk  ][jj  ][ii+1] - PrepPotPtr[kk  ][jj  ][ii-1] ) / (2.0 * dh);
+               const double dPhi_dy = ( PrepPotPtr[kk  ][jj+1][ii  ] - PrepPotPtr[kk  ][jj-1][ii  ] ) / (2.0 * dh);
+               const double dPhi_dz = ( PrepPotPtr[kk+1][jj  ][ii  ] - PrepPotPtr[kk-1][jj  ][ii  ] ) / (2.0 * dh);
 
                const double trace = _dens * ( SQR(momx) + SQR(momy) + SQR(momz) )
                                   -  dens * ( dx * dPhi_dx + dy * dPhi_dy + dz * dPhi_dz );
@@ -1048,9 +977,9 @@ void Record_GWSignal_2nd()
                }
 
             }}} // i,j,k
-         }
-#        pragma omp barrier
          } // for (int PID=0; PID<amr->NPatchComma[lv][1]; PID++)
+#        pragma omp barrier
+         } // for (int Disp=0; Disp<NTotal; Disp+=NPG_Max)
       } // for (int lv=0; lv<NLEVEL; lv++)
    } // OpenMP parallel region
 

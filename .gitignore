@@ -5,5 +5,5 @@
 
 bin/**
 gamer
-rsync2fomal.sh
+rsync*.sh
 .DS_Store

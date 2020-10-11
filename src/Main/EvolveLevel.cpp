@@ -294,13 +294,6 @@ void EvolveLevel( const int lv, const double dTime_FaLv )
       if ( OPT__VERBOSE  &&  MPI_Rank == 0 )
          Aux_Message( stdout, "   Lv %2d: Gra_AdvanceDt, counter = %8ld ... ", lv, AdvanceCounter[lv] );
 
-//    construct the 1D GR potential correction
-//    use Timer_SF to record the execution time temporarily
-#     ifdef GREP
-      TIMING_FUNC( Init_GREffPot( lv, TimeNew ),
-                   Timer_SF[lv]   );
-#     endif
-
       if ( lv == 0 )
          Gra_AdvanceDt( lv, TimeNew, TimeOld, dt_SubStep, SaveSg_Flu, SaveSg_Pot, UsePot, true, false, false, true );
 
@@ -448,7 +441,7 @@ void EvolveLevel( const int lv, const double dTime_FaLv )
 
 // we have assumed that Src_AdvanceDt() requires no ghost zones
    TIMING_FUNC(   Src_AdvanceDt( lv, TimeNew, TimeOld, dt_SubStep, SaveSg_Flu ),
-                  Timer_Src_Advance[lv]   );
+                  Timer_Src_Advance[lv],   TIMER_ON   );
 
 
 // *********************************

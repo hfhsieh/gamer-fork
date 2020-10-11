@@ -21,15 +21,15 @@ static double *Progenitor_Prof = NULL; // radial progenitor model
 static int    Progenitor_NBin ;        // number of radial bins in the progenitor model
 // =======================================================================================
 
-static bool Flag_CoreCollapse(const int i, const int j, const int k, const int lv, const int PID, const double *Threshold);
- static void Record_CentralDensity();
+static bool   Flag_CoreCollapse(const int i, const int j, const int k, const int lv, const int PID, const double *Threshold);
+static void   Record_CentralDensity();
 static double Mis_InterpolateFromTable_Ext( Profile_t *Phi, const double r );
-static void Record_GWSignal_2nd();
+static void   Record_GWSignal_2nd();
 
-
-extern int        GREP_LvUpdate;
-extern int        GREPSg  [NLEVEL];
-extern Profile_t *Phi_eff [NLEVEL][2];
+#if ( defined GRAVITY  &&  defined GREP )
+extern void   Init_ExtPot_GREP();
+extern void   Poi_UserWorkBeforePoisson_GREP( const double Time, const int lv );
+#endif
 
 //-------------------------------------------------------------------------------------------------------
 // Function    :  Validate
@@ -692,14 +692,13 @@ void Record_GWSignal_2nd()
 
       for (int lv=0; lv<NLEVEL; lv++)
       {
-         Profile_t *Phi_GREP = Phi_eff[lv][ GREPSg[lv] ];
 
          const double dh = amr->dh[lv];
          const double dv = CUBE( dh );
 
-         const double TimeNew     = Time[lv];
-         const int    NTotal = amr->NPatchComma[lv][1] / 8;
-               int   *PID0_List   = new int [NTotal];
+         const double TimeNew   = Time[lv];
+         const int    NTotal    = amr->NPatchComma[lv][1] / 8;
+               int   *PID0_List = new int [NTotal];
 
          for (int t=0; t<NTotal; t++)  PID0_List[t] = 8*t;
 
@@ -736,81 +735,11 @@ void Record_GWSignal_2nd()
                const double momz  = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[MOMZ][k][j][i];
                const double _dens = 1.0 / dens;
 
-               const real (*PotPtr    )[PS1][PS1]         = amr->patch[ amr->PotSg[lv] ][lv][PID]->pot;
                const real (*PrepPotPtr)[GRA_NXT][GRA_NXT] = h_Pot_Array_P_Out[ArrayID][PID_IDX];
 
-               const double Phi_eff_r = Mis_InterpolateFromTable_Ext( Phi_GREP, r );
-               double dPhi_dx, dPhi_dy, dPhi_dz;
-
-//             dPhi_dx
-               const double rpx = SQRT( SQR(dx + dh) + SQR(dy) + SQR(dz) );
-               const double rmx = SQRT( SQR(dx - dh) + SQR(dy) + SQR(dz) );
-               const double Phi_eff_rpx = Mis_InterpolateFromTable_Ext( Phi_GREP, rpx );
-               const double Phi_eff_rmx = Mis_InterpolateFromTable_Ext( Phi_GREP, rmx );
-
-               switch (i)
-               {
-                  case 0:
-                     dPhi_dx = ( PotPtr    [ k][ j][ i+1] + Phi_eff_rpx
-                               - PrepPotPtr[kk][jj][ii-1] - Phi_eff_rmx ) / (2.0 * dh);
-                     break;
-
-                  case PS1 - 1:
-                     dPhi_dx = ( PrepPotPtr[kk][jj][ii+1] + Phi_eff_rpx
-                               - PotPtr    [ k][ j][ i-1] - Phi_eff_rmx ) / (2.0 * dh);
-                     break;
-
-                  default:
-                     dPhi_dx = ( PotPtr    [ k][ j][ i+1] + Phi_eff_rpx
-                               - PotPtr    [ k][ j][ i-1] - Phi_eff_rmx ) / (2.0 * dh);
-               }
-
-//             dPhi_dy
-               const double rpy = SQRT( SQR(dx) + SQR(dy + dh) + SQR(dz) );
-               const double rmy = SQRT( SQR(dx) + SQR(dy - dh) + SQR(dz) );
-               const double Phi_eff_rpy = Mis_InterpolateFromTable_Ext( Phi_GREP, rpy );
-               const double Phi_eff_rmy = Mis_InterpolateFromTable_Ext( Phi_GREP, rmy );
-
-               switch (j)
-               {
-                  case 0:
-                     dPhi_dy = ( PotPtr    [ k][ j+1][ i] + Phi_eff_rpy
-                               - PrepPotPtr[kk][jj-1][ii] - Phi_eff_rmy ) / (2.0 * dh);
-                     break;
-
-                  case PS1 - 1:
-                     dPhi_dy = ( PrepPotPtr[kk][jj+1][ii] + Phi_eff_rpy
-                               - PotPtr    [ k][ j-1][ i] - Phi_eff_rmy ) / (2.0 * dh);
-                     break;
-
-                  default:
-                     dPhi_dy = ( PotPtr    [ k][ j+1][ i] + Phi_eff_rpy
-                               - PotPtr    [ k][ j-1][ i] - Phi_eff_rmy ) / (2.0 * dh);
-               }
-
-//             dPhi_dz
-               const double rpz = SQRT( SQR(dx) + SQR(dy) + SQR(dz + dh) );
-               const double rmz = SQRT( SQR(dx) + SQR(dy) + SQR(dz - dh) );
-               const double Phi_eff_rpz = Mis_InterpolateFromTable_Ext( Phi_GREP, rpz );
-               const double Phi_eff_rmz = Mis_InterpolateFromTable_Ext( Phi_GREP, rmz );
-
-               switch (k)
-               {
-                  case 0:
-                     dPhi_dz = ( PotPtr    [ k+1][ j][ i] + Phi_eff_rpz
-                               - PrepPotPtr[kk-1][jj][ii] - Phi_eff_rmz ) / (2.0 * dh);
-                     break;
-
-                  case PS1 - 1:
-                     dPhi_dz = ( PrepPotPtr[kk+1][jj][ii] + Phi_eff_rpz
-                               - PotPtr    [ k-1][ j][ i] - Phi_eff_rmz ) / (2.0 * dh);
-                     break;
-
-                  default:
-                     dPhi_dz = ( PotPtr    [ k+1][ j][ i] + Phi_eff_rpz
-                               - PotPtr    [ k-1][ j][ i] - Phi_eff_rmz ) / (2.0 * dh);
-               }
-
+               const double dPhi_dx = ( PrepPotPtr[kk  ][jj  ][ii+1] - PrepPotPtr[kk  ][jj  ][ii-1] ) / (2.0 * dh);
+               const double dPhi_dy = ( PrepPotPtr[kk  ][jj+1][ii  ] - PrepPotPtr[kk  ][jj-1][ii  ] ) / (2.0 * dh);
+               const double dPhi_dz = ( PrepPotPtr[kk+1][jj  ][ii  ] - PrepPotPtr[kk-1][jj  ][ii  ] ) / (2.0 * dh);
 
                const double trace = _dens * ( SQR(momx) + SQR(momy) + SQR(momz) )
                                   -  dens * ( dx * dPhi_dx + dy * dPhi_dy + dz * dPhi_dz );
@@ -829,9 +758,9 @@ void Record_GWSignal_2nd()
                                                - 2.0 *  dens * dz * dPhi_dz                      );  // zz
 
             }}} // i,j,k
-         }
-#        pragma omp barrier
          } // for (int PID=0; PID<amr->NPatchComma[lv][1]; PID++)
+#        pragma omp barrier
+         } // for (int Disp=0; Disp<NTotal; Disp+=NPG_Max)
       } // for (int lv=0; lv<NLEVEL; lv++)
    } // OpenMP parallel region
 
@@ -1031,27 +960,27 @@ void Init_TestProb_Hydro_CoreCollapse()
 // 3. set the corresponding function pointer below to the new problem-specific function
 // 4. enable the corresponding runtime option in "Input__Parameter"
 //    --> for instance, enable OPT__OUTPUT_USER for Output_User_Ptr
-   Init_Function_User_Ptr         = SetGridIC;
+   Init_Function_User_Ptr        = SetGridIC;
 # ifdef MHD
-   Init_Function_BField_User_Ptr  = SetBFieldIC;
+   Init_Function_BField_User_Ptr = SetBFieldIC;
 # endif
-   Init_Field_User_Ptr         = NULL;    // set NCOMP_PASSIVE_USER;        example: TestProblem/Hydro/Plummer/Init_TestProb_Hydro_Plummer.cpp --> AddNewField()
-   Flag_User_Ptr               = Flag_CoreCollapse;    // option: OPT__FLAG_USER;        example: Refine/Flag_User.cpp
-   Mis_GetTimeStep_User_Ptr    = NULL;    // option: OPT__DT_USER;          example: Miscellaneous/Mis_GetTimeStep_User.cpp
-   BC_User_Ptr                 = NULL;    // option: OPT__BC_FLU_*=4;       example: TestProblem/ELBDM/ExtPot/Init_TestProb_ELBDM_ExtPot.cpp --> BC()
-   Flu_ResetByUser_Func_Ptr    = NULL;    // option: OPT__RESET_FLUID;      example: Fluid/Flu_ResetByUser.cpp
-   Output_User_Ptr             = NULL;    // option: OPT__OUTPUT_USER;      example: TestProblem/Hydro/AcousticWave/Init_TestProb_Hydro_AcousticWave.cpp --> OutputError()
-   Aux_Record_User_Ptr         = Record_CoreCollapse; // option: OPT__RECORD_USER;      example: Auxiliary/Aux_Record_User.cpp
-   Src_User_Ptr                = NULL;       //
-   End_User_Ptr                = End_CoreCollapse;    // option: none;                  example: TestProblem/Hydro/ClusterMerger_vs_Flash/Init_TestProb_ClusterMerger_vs_Flash.cpp --> End_ClusterMerger()
-#  ifdef GRAVITY
-   Init_ExtAccAuxArray_Ptr        = NULL; // option: OPT__GRAVITY_TYPE=2/3;   example: TestProblem/Hydro/Plummer/ExtAcc_Plummer.cpp
-#  endif
-   Init_ExtPotAuxArray_Ptr        = NULL; // option: OPT__EXTERNAL_POT;       example: SelfGravity/CPU_Gravity/CPU_ExtPot_PointMass.cpp
+   Init_Field_User_Ptr           = NULL;    // set NCOMP_PASSIVE_USER;        example: TestProblem/Hydro/Plummer/Init_TestProb_Hydro_Plummer.cpp --> AddNewField()
+   Flag_User_Ptr                 = Flag_CoreCollapse;    // option: OPT__FLAG_USER;        example: Refine/Flag_User.cpp
+   Mis_GetTimeStep_User_Ptr      = NULL;    // option: OPT__DT_USER;          example: Miscellaneous/Mis_GetTimeStep_User.cpp
+   BC_User_Ptr                   = NULL;    // option: OPT__BC_FLU_*=4;       example: TestProblem/ELBDM/ExtPot/Init_TestProb_ELBDM_ExtPot.cpp --> BC()
+   Flu_ResetByUser_Func_Ptr      = NULL;    // option: OPT__RESET_FLUID;      example: Fluid/Flu_ResetByUser.cpp
+   Output_User_Ptr               = NULL;    // option: OPT__OUTPUT_USER;      example: TestProblem/Hydro/AcousticWave/Init_TestProb_Hydro_AcousticWave.cpp --> OutputError()
+   Aux_Record_User_Ptr           = Record_CoreCollapse; // option: OPT__RECORD_USER;      example: Auxiliary/Aux_Record_User.cpp
+   Src_User_Ptr                  = NULL;       //
+   End_User_Ptr                  = End_CoreCollapse;    // option: none;                  example: TestProblem/Hydro/ClusterMerger_vs_Flash/Init_TestProb_ClusterMerger_vs_Flash.cpp --> End_ClusterMerger()
    Poi_AddExtraMassForGravity_Ptr = NULL; // option: OPT__GRAVITY_EXTRA_MASS; example: none
+#if ( defined GRAVITY  &&  defined GREP )
+   Init_ExtPot_Ptr               = Init_ExtPot_GREP;
+   Poi_UserWorkBeforePoisson_Ptr = Poi_UserWorkBeforePoisson_GREP;
+#endif
 #  ifdef PARTICLE
-   Par_Init_ByFunction_Ptr     = NULL;    // option: PAR_INIT=1;            example: Particle/Par_Init_ByFunction.cpp
-   Par_Init_Attribute_User_Ptr = NULL;    // set PAR_NATT_USER;             example: TestProblem/Hydro/AGORA_IsolatedGalaxy/Init_TestProb_Hydro_AGORA_IsolatedGalaxy.cpp --> AddNewParticleAttribute()
+   Par_Init_ByFunction_Ptr       = NULL;    // option: PAR_INIT=1;            example: Particle/Par_Init_ByFunction.cpp
+   Par_Init_Attribute_User_Ptr   = NULL;    // set PAR_NATT_USER;             example: TestProblem/Hydro/AGORA_IsolatedGalaxy/Init_TestProb_Hydro_AGORA_IsolatedGalaxy.cpp --> AddNewParticleAttribute()
 #  endif
 #  endif // #if ( MODEL == HYDRO )
 

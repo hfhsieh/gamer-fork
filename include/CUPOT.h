@@ -186,12 +186,6 @@
 #endif
 
 
-// maximum size of Profile
-#ifdef GREP
-#define GR_POT_NAUX_MAX           4000
-#endif
-
-
 // warp size (which must be the same as the CUDA predefined constant "warpSize")
 // --> please refer to https://en.wikipedia.org/wiki/CUDA#Version_features_and_specifications
 //     for information on warp size
