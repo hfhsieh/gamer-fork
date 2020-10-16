@@ -2033,7 +2033,7 @@ void Check_InputPara( const char *FileName, const int FormatVersion )
       for (int t=0; t<4; t++)
       RS.FlagTable_Lohner      [lv][t] = -1.0;
 
-      RS.FlagTable_User        [lv].p   = (double *) malloc( OPT__FLAG_USER_NUM*sizeof(double) );
+      RS.FlagTable_User        [lv].p   = malloc( OPT__FLAG_USER_NUM*sizeof(double) );
       RS.FlagTable_User        [lv].len = OPT__FLAG_USER_NUM;
       for (int t=0; t<OPT__FLAG_USER_NUM; t++)
       ( (double *) RS.FlagTable_User[lv].p )[t] = -1.0;
@@ -2076,17 +2076,18 @@ void Check_InputPara( const char *FileName, const int FormatVersion )
    }}
 
    if ( OPT__FLAG_USER ) {
-   for (int lv=0; lv<MAX_LEVEL; lv++) {
-   char Key[MAX_STRING];
-   sprintf( Key, "FlagTable_User_Lv%02d", lv );
+   for (int lv=0; lv<MAX_LEVEL; lv++)
+   {
+      char Key[MAX_STRING];
+      sprintf( Key, "FlagTable_User_Lv%02d", lv );
 
-   LoadField( Key,                       &RS.FlagTable_User[lv],      SID, TID, NonFatal,  NullPtr,                    -1, NonFatal );
+      LoadField( Key,                    &RS.FlagTable_User[lv],      SID, TID, NonFatal,  NullPtr,                    -1, NonFatal );
 
-   for (int t=0; t<OPT__FLAG_USER_NUM; t++) {
-      if ( ((double *) RS.FlagTable_User[lv].p)[t] != ((double *) RT.FlagTable_User[lv].p)[t] )
+      for (int t=0; t<OPT__FLAG_USER_NUM; t++)
+      if (  ( (double *) RS.FlagTable_User[lv].p )[t] != ( (double *) RT.FlagTable_User[lv].p )[t]  )
          Aux_Message( stderr, "WARNING : \"%s[%d][%d]\" : RESTART file (%20.14e) != runtime (%20.14e) !!\n",
-                       "FlagTable_User", lv, t, ((double *) RS.FlagTable_User[lv].p)[t],  ((double *) RT.FlagTable_User[lv].p)[t] );
-   }}}
+                      "FlagTable_User", lv, t, ( (double *) RS.FlagTable_User[lv].p )[t],  ( (double *) RT.FlagTable_User[lv].p )[t] );
+   }}
 
 #  if   ( MODEL == HYDRO )
    if ( OPT__FLAG_PRES_GRADIENT )

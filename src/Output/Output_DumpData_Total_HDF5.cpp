@@ -69,7 +69,7 @@ Procedure for outputting new variables:
 
 
 //-------------------------------------------------------------------------------------------------------
-// Function    :  Output_DumpData_Total_HDF5 (FormatVersion = 2419)
+// Function    :  Output_DumpData_Total_HDF5 (FormatVersion = 2420)
 // Description :  Output all simulation data in the HDF5 format, which can be used as a restart file
 //                or loaded by YT
 //
@@ -324,7 +324,7 @@ void Output_DumpData_Total_HDF5( const char *FileName )
       H5_Status = H5Fclose( H5_FileID );
 
 //    3-4. free memory
-     for (int lv=0; lv<NLEVEL-1; lv++)   free( InputPara.FlagTable_User[lv].p );
+      for (int lv=0; lv<NLEVEL-1; lv++)   free( InputPara.FlagTable_User[lv].p );
    } // if ( MPI_Rank == 0 )
 
 
@@ -2272,10 +2272,10 @@ void FillIn_InputPara( InputPara_t &InputPara )
       for (int t=0; t<4; t++)
       InputPara.FlagTable_Lohner      [lv][t] = FlagTable_Lohner      [lv][t];
 
-      InputPara.FlagTable_User        [lv].p   = (double *) malloc( OPT__FLAG_USER_NUM*sizeof(double) );
+      InputPara.FlagTable_User        [lv].p   = malloc( OPT__FLAG_USER_NUM*sizeof(double) );
       InputPara.FlagTable_User        [lv].len = OPT__FLAG_USER_NUM;
       for (int t=0; t<OPT__FLAG_USER_NUM; t++)
-      ( (double *) InputPara.FlagTable_User[lv].p )[t] = FlagTable_User        [lv][t];
+      ( (double *) InputPara.FlagTable_User[lv].p )[t] = FlagTable_User[lv][t];
 
 #     if   ( MODEL == HYDRO )
       InputPara.FlagTable_PresGradient[lv]    = FlagTable_PresGradient[lv];
@@ -2621,7 +2621,7 @@ void GetCompound_InputPara( hid_t &H5_TypeID )
    const hid_t   H5_TypeID_Arr_NLvM1Double    = H5Tarray_create( H5T_NATIVE_DOUBLE, 1, &H5_ArrDims_NLvM1     );
    const hid_t   H5_TypeID_Arr_NLvM1_2Double  = H5Tarray_create( H5T_NATIVE_DOUBLE, 2,  H5_ArrDims_NLvM1_2   );
    const hid_t   H5_TypeID_Arr_NLvM1_4Double  = H5Tarray_create( H5T_NATIVE_DOUBLE, 2,  H5_ArrDims_NLvM1_4   );
-   const hid_t   H5_TypeID_Arr_NLvM1VLDouble  = H5Tvlen_create ( H5T_NATIVE_DOUBLE );
+   const hid_t   H5_TypeID_Arr_NLvM1_VLDouble = H5Tvlen_create ( H5T_NATIVE_DOUBLE );
 #  endif
 
 
@@ -3015,18 +3015,18 @@ void GetCompound_InputPara( hid_t &H5_TypeID )
 
 // flag tables
 #  if ( NLEVEL > 1 )
-   H5Tinsert( H5_TypeID, "FlagTable_Rho",          HOFFSET(InputPara_t,FlagTable_Rho           ), H5_TypeID_Arr_NLvM1Double    );
-   H5Tinsert( H5_TypeID, "FlagTable_RhoGradient",  HOFFSET(InputPara_t,FlagTable_RhoGradient   ), H5_TypeID_Arr_NLvM1Double    );
-   H5Tinsert( H5_TypeID, "FlagTable_Lohner",       HOFFSET(InputPara_t,FlagTable_Lohner        ), H5_TypeID_Arr_NLvM1_4Double  );
+   H5Tinsert( H5_TypeID, "FlagTable_Rho",          HOFFSET(InputPara_t,FlagTable_Rho           ), H5_TypeID_Arr_NLvM1Double   );
+   H5Tinsert( H5_TypeID, "FlagTable_RhoGradient",  HOFFSET(InputPara_t,FlagTable_RhoGradient   ), H5_TypeID_Arr_NLvM1Double   );
+   H5Tinsert( H5_TypeID, "FlagTable_Lohner",       HOFFSET(InputPara_t,FlagTable_Lohner        ), H5_TypeID_Arr_NLvM1_4Double );
 
-// store the user-defined threshold at all levels
+// store the user-defined thresholds at all levels
    for (int lv=0; lv<MAX_LEVEL; lv++)
    {
 //    key for each level
       sprintf( Key, "FlagTable_User_Lv%02d", lv );
 
 //    assuming the offset between successive FlagTable_User pointers is "PtrSize_hvl", which is equal to "sizeof( hvl_t )"
-      H5Tinsert( H5_TypeID, Key, HOFFSET(InputPara_t,FlagTable_User)+lv*PtrSize_hvl, H5_TypeID_Arr_NLvM1VLDouble );
+      H5Tinsert( H5_TypeID, Key, HOFFSET(InputPara_t,FlagTable_User)+lv*PtrSize_hvl, H5_TypeID_Arr_NLvM1_VLDouble );
    }
 
 #  if   ( MODEL == HYDRO )
@@ -3058,7 +3058,7 @@ void GetCompound_InputPara( hid_t &H5_TypeID )
    H5_Status = H5Tclose( H5_TypeID_Arr_NLvM1Double    );
    H5_Status = H5Tclose( H5_TypeID_Arr_NLvM1_2Double  );
    H5_Status = H5Tclose( H5_TypeID_Arr_NLvM1_4Double  );
-   H5_Status = H5Tclose( H5_TypeID_Arr_NLvM1VLDouble  );
+   H5_Status = H5Tclose( H5_TypeID_Arr_NLvM1_VLDouble );
 #  endif
    H5_Status = H5Tclose( H5_TypeID_VarStr );
 

@@ -66,7 +66,7 @@ bool Flag_User_Template( const int i, const int j, const int k, const int lv, co
    const double dr[3]     = { Pos[0]-Center[0], Pos[1]-Center[1], Pos[2]-Center[2] };
    const double Radius    = sqrt( dr[0]*dr[0] + dr[1]*dr[1] + dr[2]*dr[2] );
 
-   Flag = Radius < Threshold;
+   Flag = Radius < Threshold[0];
    */
 // ##########################################################################################################
 
