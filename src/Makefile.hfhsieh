@@ -47,10 +47,6 @@ SIMU_OPTION += -DGRAVITY
 # --> please enable OpenMP when compiling Grackle (by "make omp-on")
 #SIMU_OPTION += -DSUPPORT_GRACKLE
 
-# enable GR effective potential
-SIMU_OPTION += -DGREP
-#SIMU_OPTION += -DGREP_DEBUG
-
 
 # (b) options of different physical modules
 # (b-1) hydro options
@@ -137,6 +133,10 @@ SIMU_OPTION += -DSTORE_POT_GHOST
 # comoving frame for cosmological simulations
 # --> not supported for PARTICLE
 #SIMU_OPTION += -DCOMOVING
+
+# include effective GR potential
+SIMU_OPTION += -DGREP
+#SIMU_OPTION += -DGREP_DEBUG
 endif # GRAVITY
 
 
