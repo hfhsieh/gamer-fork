@@ -1,0 +1,24 @@
+Compilation flags:
+========================================
+Enable : MODEL=HYDRO, EOS=MODEL=HYDRO, BAROTROPIC, GRAVITY
+Disable: COMOVING
+
+
+Default setup:
+========================================
+1. Units:
+       [L   ] = AU
+       [Mass] = Msun
+       [Time] = kyr
+
+   (2) Internal (for all other input files and internal usage):
+       [L   ] = kpc
+       [v   ] = 1e3 km/s
+       [Dens] = 5.0e-25 g/cm^3
+    -->[Time] = [L]/[v] ~ 0.978 Myr ~ 1.0 Myr
+    -->[Mass] = [Dens]*[L]^3 ~ 7.4e6 Msun
+
+
+Note:
+========================================
+1. The rotation axis is assumed to align with the z-direction.

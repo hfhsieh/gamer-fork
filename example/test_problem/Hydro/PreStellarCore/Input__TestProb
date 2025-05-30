@@ -1,0 +1,6 @@
+# problem-specific runtime parameters
+PSC_Mass             1.0            # mass   of the spherical molecule cloud, in solar mass [1.0]
+PSC_Radius           5.0e3          # radius of the spherical molecule cloud, in AU [5.0e3]
+PSC_Ratio_Dens_Edge  1.0e1          # ratio of central to edge    density [1.0e1]
+PSC_Ratio_Dens_Env   1.0e2          # ratio of edge to background density [1.0e2]
+PSC_Ratio_Force      1.0e-2         # ratio of centrifugal to gravitational force [0.0]
