@@ -842,8 +842,8 @@ void Aux_Check_Parameter()
 #     error : ERROR : CTU does NOT support LR_EINT in CUFLU.h !!
 #  endif
 
-#  if ( EOS != EOS_GAMMA  &&  EOS != EOS_ISOTHERMAL  &&  EOS != EOS_NUCLEAR  &&  EOS != EOS_TABULAR  &&  EOS != EOS_COSMIC_RAY  &&  EOS != EOS_TAUBMATHEWS  &&  EOS != EOS_USER )
-#     error : ERROR : unsupported equation of state (EOS_GAMMA/EOS_ISOTHERMAL/EOS_NUCLEAR/EOS_TABULAR/EOS_COSMIC_RAY/EOS_TAUBMATHEWS/EOS_USER) !!
+#  if ( EOS != EOS_GAMMA  &&  EOS != EOS_ISOTHERMAL  &&  EOS != EOS_NUCLEAR  &&  EOS != EOS_TABULAR  &&  EOS != EOS_COSMIC_RAY  &&  EOS != EOS_TAUBMATHEWS  &&  EOS != EOS_MULTIGAMMA  &&  EOS != EOS_USER )
+#     error : ERROR : unsupported equation of state (EOS_GAMMA/EOS_ISOTHERMAL/EOS_NUCLEAR/EOS_TABULAR/EOS_COSMIC_RAY/EOS_TAUBMATHEWS/EOS_MULTIGAMMA/EOS_USER) !!
 #  endif
 
 #  if ( EOS != EOS_GAMMA )
@@ -900,8 +900,8 @@ void Aux_Check_Parameter()
 #        error : ERROR : BAROTROPIC_EOS is incompatible with EOS_GAMMA/EOS_COSMIC_RAY/EOS_NUCLEAR/EOS_TAUBMATHEWS !!
 #     endif
 #  else
-#     if ( EOS == EOS_ISOTHERMAL )
-#        error : ERROR : must enable BAROTROPIC_EOS for EOS_ISOTHERMAL !!
+#     if ( EOS == EOS_ISOTHERMAL  ||  EOS == EOS_MULTIGAMMA )
+#        error : ERROR : must enable BAROTROPIC_EOS for EOS_ISOTHERMAL/EOS_MULTIGAMMA !!
 #     endif
 #  endif // #ifdef BAROTROPIC_EOS ... else ...
 
@@ -1001,8 +1001,8 @@ void Aux_Check_Parameter()
    else
       Aux_Message( stderr, "WARNING : MIN_ENTR (%13.7e) is on --> please ensure that this value is reasonable !!\n", MIN_ENTR );
 
-#  if (  defined LR_EINT  &&  ( EOS == EOS_GAMMA || EOS == EOS_ISOTHERMAL )  )
-      Aux_Message( stderr, "WARNING : LR_EINT is not recommended for EOS_GAMMA/EOS_ISOTHERMAL !!\n" );
+#  if (  defined LR_EINT  &&  ( EOS == EOS_GAMMA || EOS == EOS_ISOTHERMAL || EOS == EOS_MULTIGAMMA )  )
+      Aux_Message( stderr, "WARNING : LR_EINT is not recommended for EOS_GAMMA/EOS_ISOTHERMAL/EOS_MULTIGAMMA !!\n" );
 #  endif
 
 #  ifdef SRHD

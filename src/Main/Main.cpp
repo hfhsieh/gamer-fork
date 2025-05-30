@@ -103,6 +103,7 @@ double               ConRef[1+NCONREF_MAX]; // time + conserved variables
 #if   ( MODEL == HYDRO )
 double               FlagTable_PresGradient[NLEVEL-1], FlagTable_Vorticity[NLEVEL-1], FlagTable_Jeans[NLEVEL-1];
 double               GAMMA, MINMOD_COEFF, AUTO_REDUCE_MINMOD_FACTOR, AUTO_REDUCE_MINMOD_MIN, MOLECULAR_WEIGHT, MU_NORM, ISO_TEMP;
+double               MULTIGAMMA_GAMMA1, MULTIGAMMA_GAMMA2, MULTIGAMMA_GAMMA3, MULTIGAMMA_TURNOVER1, MULTIGAMMA_TURNOVER2, MULTIGAMMA_TURNOVER3, MULTIGAMMA_TEMPBASE;
 LR_Limiter_t         OPT__LR_LIMITER;
 Opt1stFluxCorr_t     OPT__1ST_FLUX_CORR;
 OptRSolver1st_t      OPT__1ST_FLUX_CORR_SCHEME;

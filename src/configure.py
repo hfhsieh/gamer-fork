@@ -528,19 +528,19 @@ def load_arguments( sys_setting : SystemSetting ):
                        )
 
     parser.add_argument( "--eos", type=str, metavar="TYPE", gamer_name="EOS", prefix="EOS_",
-                         default=None, choices=["GAMMA", "ISOTHERMAL", "NUCLEAR", "TABULAR", "COSMIC_RAY", "TAUBMATHEWS", "USER"],
+                         default=None, choices=["GAMMA", "ISOTHERMAL", "NUCLEAR", "TABULAR", "COSMIC_RAY", "TAUBMATHEWS", "MULTIGAMMA", "USER"],
                          depend={"model":"HYDRO"},
-                         constraint={ "ISOTHERMAL":{"barotropic":True}, "COSMIC_RAY":{"cosmic_ray":True}, "TAUBMATHEWS":{"srhd":True} },
+                         constraint={ "ISOTHERMAL":{"barotropic":True}, "COSMIC_RAY":{"cosmic_ray":True}, "TAUBMATHEWS":{"srhd":True}, "MULTIGAMMA":{"barotropic":True} },
                          help="Equation of state. Must be set when <--model=HYDRO>. "\
-                              "Must enable <--barotropic> for ISOTHERMAL.\n"
+                              "Must enable <--barotropic> for ISOTHERMAL and MULTIGAMMA.\n"
                        )
 
     parser.add_argument( "--barotropic", type=str2bool, metavar="BOOLEAN", gamer_name="BAROTROPIC_EOS",
                          default=None,
                          depend={"model":"HYDRO"},
-                         constraint={ True:{"eos":["ISOTHERMAL", "TABULAR", "USER"]} },
+                         constraint={ True:{"eos":["ISOTHERMAL", "TABULAR", "MULTIGAMMA", "USER"]} },
                          help="Whether or not the equation of state set by <--eos> is barotropic. "\
-                              "Mandatory for <--eos=ISOTHEMAL>. Optional for <--eos=TABULAR> and <--eos=USER>.\n"
+                              "Mandatory for <--eos=ISOTHEMAL> and <--eos=MULTIGAMMA>. Optional for <--eos=TABULAR> and <--eos=USER>.\n"
                        )
 
     # A.2 ELBDM scheme
@@ -911,7 +911,7 @@ def set_conditional_defaults( args ):
         else                   : args["eos"] = "GAMMA"
 
     if args["barotropic"] is None:
-        args["barotropic"] = (args["eos"] == "ISOTHERMAL")
+        args["barotropic"] = (args["eos"] in {"ISOTHERMAL", "MULTIGAMMA"})
 
     if args["rng"] is None:
        args["rng"] = "RNG_CPP11" if sys.platform == "darwin" else "RNG_GNU_EXT"

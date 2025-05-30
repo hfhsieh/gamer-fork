@@ -158,9 +158,9 @@
 //               which may affect the accuracy of Riemann solver if it loads both conservative and primitive variables
 //           (2) incompatible with CTU as it requires applying the characteristic tracing step to internal energy,
 //               which has not been implemented
-// --> unnecessary for EOS_GAMMA/EOS_ISOTHERMAL as they are fast
+// --> unnecessary for EOS_GAMMA/EOS_ISOTHERMAL/EOS_MULTIGAMMA as they are fast
 // --> disable it by default
-#if ( EOS != EOS_GAMMA  &&  EOS != EOS_ISOTHERMAL  &&  FLU_SCHEME != CTU )
+#if ( EOS != EOS_GAMMA  &&  EOS != EOS_ISOTHERMAL  &&  EOS != EOS_MULTIGAMMA  &&  FLU_SCHEME != CTU )
 //#  define LR_EINT
 #endif
 

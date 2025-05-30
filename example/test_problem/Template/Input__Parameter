@@ -249,6 +249,13 @@ GAMMA                         1.666666667 # ratio of specific heats (i.e., adiab
 MOLECULAR_WEIGHT              0.6         # mean molecular weight [0.6]
 MU_NORM                      -1.0         # normalization of MOLECULAR_WEIGHT (<0=m_H, 0=amu, >0=input manually) [-1.0]
 ISO_TEMP                      1.0e4       # isothermal temperature in kelvin ##EOS_ISOTHERMAL ONLY##
+MULTIGAMMA_GAMMA1             0.4         # exponent 1 in the MULTI_GAMMA EoS [0.4] ##EOS_MULTIGAMMA ONLY##
+MULTIGAMMA_GAMMA2            -0.3         # exponent 2 in the MULTI_GAMMA EoS [-0.3] ##EOS_MULTIGAMMA ONLY##
+MULTIGAMMA_GAMMA3             0.566666667 # exponent 3 in the MULTI_GAMMA EoS [1.7/3.0] ##EOS_MULTIGAMMA ONLY##
+MULTIGAMMA_TURNOVER1          1.0e11      # turnover number density 1 (in 1/cm^3) [1.0e11] ##EOS_MULTIGAMMA ONLY##
+MULTIGAMMA_TURNOVER2          1.0e16      # turnover number density 2 (in 1/cm^3) [1.0e16] ##EOS_MULTIGAMMA ONLY##
+MULTIGAMMA_TURNOVER3          1.0e21      # turnover number density 3 (in 1/cm^3) [1.0e21] ##EOS_MULTIGAMMA ONLY##
+MULTIGAMMA_TEMPBASE           1.0e1       # isothermal temperature at low-density limit (in Kelvin) [1.0e1] ##EOS_MULTIGAMMA ONLY##
 MINMOD_COEFF                  1.5         # coefficient of the generalized MinMod limiter (1.0~2.0) [1.5]
 MINMOD_MAX_ITER               0           # maximum number of iterations to reduce MINMOD_COEFF when data reconstruction fails (0=off) [0]
 OPT__LR_LIMITER              -1           # slope limiter of data reconstruction in the MHM/MHM_RP/CTU schemes:

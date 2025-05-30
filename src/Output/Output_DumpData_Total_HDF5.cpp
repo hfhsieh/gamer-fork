@@ -278,6 +278,10 @@ Procedure for outputting new variables:
 //                2503 : 2025/01/17 --> output user-defined parameters in "User/UserPara" and
 //                                             Input__TestProb parameters in "Info/InputTest"
 //                2504 : 2025/04/29 --> output OPT__PAR_INIT_CHECK
+//
+// History for the project of proto-stellar core
+//                ???? : 2025/03/08 --> output MULTIGAMMA_GAMMA1, MULTIGAMMA_GAMMA2, MULTIGAMMA_GAMMA3
+//                                             MULTIGAMMA_TURNOVER1, MULTIGAMMA_TURNOVER2, MULTIGAMMA_TURNOVER3, MULTIGAMMA_TEMPBASE
 //-------------------------------------------------------------------------------------------------------
 void Output_DumpData_Total_HDF5( const char *FileName )
 {
@@ -2556,6 +2560,15 @@ void FillIn_InputPara( InputPara_t &InputPara, const int NFieldStored, char Fiel
    InputPara.MolecularWeight         = MOLECULAR_WEIGHT;
    InputPara.MuNorm                  = MU_NORM;
    InputPara.IsoTemp                 = ISO_TEMP;
+#  if ( EOS == EOS_MULTIGAMMA )
+   InputPara.MultiGamma_Gamma1       = MULTIGAMMA_GAMMA1;
+   InputPara.MultiGamma_Gamma2       = MULTIGAMMA_GAMMA2;
+   InputPara.MultiGamma_Gamma3       = MULTIGAMMA_GAMMA3;
+   InputPara.MultiGamma_Turnover1    = MULTIGAMMA_TURNOVER1;
+   InputPara.MultiGamma_Turnover2    = MULTIGAMMA_TURNOVER2;
+   InputPara.MultiGamma_Turnover3    = MULTIGAMMA_TURNOVER3;
+   InputPara.MultiGamma_TempBase     = MULTIGAMMA_TEMPBASE;
+#  endif
    InputPara.MinMod_Coeff            = MINMOD_COEFF;
    InputPara.MinMod_MaxIter          = MINMOD_MAX_ITER;
    InputPara.Opt__LR_Limiter         = OPT__LR_LIMITER;
@@ -3614,6 +3627,15 @@ void GetCompound_InputPara( hid_t &H5_TypeID, const int NFieldStored )
    H5Tinsert( H5_TypeID, "MolecularWeight",         HOFFSET(InputPara_t,MolecularWeight        ), H5T_NATIVE_DOUBLE  );
    H5Tinsert( H5_TypeID, "MuNorm",                  HOFFSET(InputPara_t,MuNorm                 ), H5T_NATIVE_DOUBLE  );
    H5Tinsert( H5_TypeID, "IsoTemp",                 HOFFSET(InputPara_t,IsoTemp                ), H5T_NATIVE_DOUBLE  );
+#  if ( EOS == EOS_MULTIGAMMA )
+   H5Tinsert( H5_TypeID, "MultiGamma_Gamma1",       HOFFSET(InputPara_t,MultiGamma_Gamma1      ), H5T_NATIVE_DOUBLE  );
+   H5Tinsert( H5_TypeID, "MultiGamma_Gamma2",       HOFFSET(InputPara_t,MultiGamma_Gamma2      ), H5T_NATIVE_DOUBLE  );
+   H5Tinsert( H5_TypeID, "MultiGamma_Gamma3",       HOFFSET(InputPara_t,MultiGamma_Gamma3      ), H5T_NATIVE_DOUBLE  );
+   H5Tinsert( H5_TypeID, "MultiGamma_Turnover1",    HOFFSET(InputPara_t,MultiGamma_Turnover1   ), H5T_NATIVE_DOUBLE  );
+   H5Tinsert( H5_TypeID, "MultiGamma_Turnover2",    HOFFSET(InputPara_t,MultiGamma_Turnover2   ), H5T_NATIVE_DOUBLE  );
+   H5Tinsert( H5_TypeID, "MultiGamma_Turnover3",    HOFFSET(InputPara_t,MultiGamma_Turnover3   ), H5T_NATIVE_DOUBLE  );
+   H5Tinsert( H5_TypeID, "MultiGamma_TempBase",     HOFFSET(InputPara_t,MultiGamma_TempBase    ), H5T_NATIVE_DOUBLE  );
+#  endif
    H5Tinsert( H5_TypeID, "MinMod_Coeff",            HOFFSET(InputPara_t,MinMod_Coeff           ), H5T_NATIVE_DOUBLE  );
    H5Tinsert( H5_TypeID, "MinMod_MaxIter",          HOFFSET(InputPara_t,MinMod_MaxIter         ), H5T_NATIVE_INT     );
    H5Tinsert( H5_TypeID, "Opt__LR_Limiter",         HOFFSET(InputPara_t,Opt__LR_Limiter        ), H5T_NATIVE_INT     );

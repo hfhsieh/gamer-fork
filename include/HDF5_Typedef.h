@@ -583,6 +583,15 @@ struct InputPara_t
    double MolecularWeight;
    double MuNorm;
    double IsoTemp;
+#  if ( EOS == EOS_MULTIGAMMA )
+   double MultiGamma_Gamma1;
+   double MultiGamma_Gamma2;
+   double MultiGamma_Gamma3;
+   double MultiGamma_Turnover1;
+   double MultiGamma_Turnover2;
+   double MultiGamma_Turnover3;
+   double MultiGamma_TempBase;
+#  endif
    double MinMod_Coeff;
    int    MinMod_MaxIter;
    int    Opt__LR_Limiter;

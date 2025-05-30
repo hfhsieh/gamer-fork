@@ -198,6 +198,8 @@ void Aux_TakeNote()
       fprintf( Note, "EOS                             EOS_TABULAR\n" );
 #     elif ( EOS == EOS_COSMIC_RAY )
       fprintf( Note, "EOS                             EOS_COSMIC_RAY\n" );
+#     elif ( EOS == EOS_MULTIGAMMA )
+      fprintf( Note, "EOS                             EOS_MULTIGAMMA\n" );
 #     elif ( EOS == EOS_USER )
       fprintf( Note, "EOS                             EOS_USER\n" );
 #     else
@@ -1199,6 +1201,15 @@ void Aux_TakeNote()
       fprintf( Note, "MOLECULAR_WEIGHT               % 14.7e\n",  MOLECULAR_WEIGHT        );
       fprintf( Note, "MU_NORM                        % 14.7e\n",  MU_NORM                 );
       fprintf( Note, "ISO_TEMP                       % 14.7e\n",  ISO_TEMP                );
+#     if ( EOS == EOS_MULTIGAMMA )
+      fprintf( Note, "MULTIGAMMA_GAMMA1              % 14.7e\n",  MULTIGAMMA_GAMMA1       );
+      fprintf( Note, "MULTIGAMMA_GAMMA2              % 14.7e\n",  MULTIGAMMA_GAMMA2       );
+      fprintf( Note, "MULTIGAMMA_GAMMA3              % 14.7e\n",  MULTIGAMMA_GAMMA3       );
+      fprintf( Note, "MULTIGAMMA_TURNOVER1           % 14.7e\n",  MULTIGAMMA_TURNOVER1    );
+      fprintf( Note, "MULTIGAMMA_TURNOVER2           % 14.7e\n",  MULTIGAMMA_TURNOVER2    );
+      fprintf( Note, "MULTIGAMMA_TURNOVER3           % 14.7e\n",  MULTIGAMMA_TURNOVER3    );
+      fprintf( Note, "MULTIGAMMA_TEMPBASE            % 14.7e\n",  MULTIGAMMA_TEMPBASE     );
+#     endif
       fprintf( Note, "MINMOD_COEFF                   % 14.7e\n",  MINMOD_COEFF            );
       fprintf( Note, "MINMOD_MAX_ITER                % d\n",      MINMOD_MAX_ITER         );
       fprintf( Note, "OPT__LR_LIMITER                 %s\n",      ( OPT__LR_LIMITER == LR_LIMITER_VANLEER    ) ? "VANLEER"    :

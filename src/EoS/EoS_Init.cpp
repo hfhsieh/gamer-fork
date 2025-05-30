@@ -15,6 +15,8 @@ void EoS_Init_TaubMathews();
 # error : ERROR : EOS_NUCLEAR is NOT supported yet !!
 #elif ( EOS == EOS_COSMIC_RAY )
 void EoS_Init_GammaCR();
+#elif ( EOS == EOS_MULTIGAMMA )
+void EoS_Init_MultiGamma();
 #endif // # EOS
 
 // this function pointer must be set by a test problem initializer for non-built-in EoS
@@ -74,6 +76,8 @@ void EoS_Init()
 #  error : ERROR : EOS_NUCLEAR is NOT supported yet !!
 #  elif ( EOS == EOS_COSMIC_RAY )
    EoS_Init_Ptr = EoS_Init_GammaCR;
+#  elif ( EOS == EOS_MULTIGAMMA )
+   EoS_Init_Ptr = EoS_Init_MultiGamma;
 #  endif // # EOS
 
 

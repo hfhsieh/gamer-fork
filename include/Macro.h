@@ -104,7 +104,8 @@
 #define EOS_TABULAR     4
 #define EOS_COSMIC_RAY  5
 #define EOS_TAUBMATHEWS 6
-#define EOS_USER        7
+#define EOS_MULTIGAMMA  7
+#define EOS_USER        8
 
 
 // ELBDM schemes
@@ -256,8 +257,8 @@
 
 
 // number of input fluid variables in the dt solver
-// --> EOS_GAMMA/EOS_ISOTHERMAL do not require passive scalars
-#if (  MODEL == HYDRO  &&  !defined SRHD  &&  ( EOS == EOS_GAMMA || EOS == EOS_ISOTHERMAL )  )
+// --> EOS_GAMMA/EOS_ISOTHERMAL/EOS_MULTIGAMMA do not require passive scalars
+#if (  MODEL == HYDRO  &&  !defined SRHD  &&  ( EOS == EOS_GAMMA || EOS == EOS_ISOTHERMAL || EOS == EOS_MULTIGAMMA )  )
 #  define FLU_NIN_T           NCOMP_FLUID
 #else
 #  define FLU_NIN_T           NCOMP_TOTAL

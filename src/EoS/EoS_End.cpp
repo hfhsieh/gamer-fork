@@ -13,6 +13,8 @@
 # error : ERROR : EOS_NUCLEAR is NOT supported yet !!
 #elif ( EOS == EOS_COSMIC_RAY )
 // nothing to do
+#elif ( EOS == EOS_MULTIGAMMA )
+// nothing to do
 #endif // # EOS
 
 // this function pointer can be set by a test problem initializer for non-built-in EoS
@@ -48,6 +50,8 @@ void EoS_End()
 #  elif ( EOS == EOS_COSMIC_RAY )
 // nothing to do
 #  elif ( EOS == EOS_TAUBMATHEWS )
+// nothing to do
+#  elif ( EOS == EOS_MULTIGAMMA )
 // nothing to do
 #  endif // # EOS
 

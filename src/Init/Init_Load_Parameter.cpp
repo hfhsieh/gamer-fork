@@ -307,6 +307,15 @@ void Init_Load_Parameter()
 #  else
    ReadPara->Add( "ISO_TEMP",                   &ISO_TEMP,                       __DBL_MAX__,      NoMin_double,  NoMax_double   );
 #  endif
+#  if ( EOS == EOS_MULTIGAMMA )
+   ReadPara->Add( "MULTIGAMMA_GAMMA1",          &MULTIGAMMA_GAMMA1,               0.4,             NoMin_double,  NoMax_double   );
+   ReadPara->Add( "MULTIGAMMA_GAMMA2",          &MULTIGAMMA_GAMMA2,              -0.3,             NoMin_double,  NoMax_double   );
+   ReadPara->Add( "MULTIGAMMA_GAMMA3",          &MULTIGAMMA_GAMMA3,               1.7/3.0,         NoMin_double,  NoMax_double   );
+   ReadPara->Add( "MULTIGAMMA_TURNOVER1",       &MULTIGAMMA_TURNOVER1,            1.0e11,          Eps_double,    NoMax_double   );
+   ReadPara->Add( "MULTIGAMMA_TURNOVER2",       &MULTIGAMMA_TURNOVER2,            1.0e16,          Eps_double,    NoMax_double   );
+   ReadPara->Add( "MULTIGAMMA_TURNOVER3",       &MULTIGAMMA_TURNOVER3,            1.0e21,          Eps_double,    NoMax_double   );
+   ReadPara->Add( "MULTIGAMMA_TEMPBASE",        &MULTIGAMMA_TEMPBASE,             1.0e1,           Eps_double,    NoMax_double   );
+#  endif
    ReadPara->Add( "MINMOD_COEFF",               &MINMOD_COEFF,                    1.5,             1.0,           2.0            );
    ReadPara->Add( "MINMOD_MAX_ITER",            &MINMOD_MAX_ITER,                   0,               0,           NoMax_int      );
    ReadPara->Add( "OPT__LR_LIMITER",            &OPT__LR_LIMITER,             LR_LIMITER_DEFAULT, -1,             7              );

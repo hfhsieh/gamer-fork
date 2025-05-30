@@ -2111,6 +2111,15 @@ void Check_InputPara( const char *FileName, const int FormatVersion )
    LoadField( "MolecularWeight",         &RS.MolecularWeight,         SID, TID, NonFatal, &RT.MolecularWeight,          1, NonFatal );
    LoadField( "MuNorm",                  &RS.MuNorm,                  SID, TID, NonFatal, &RT.MuNorm,                   1, NonFatal );
    LoadField( "IsoTemp",                 &RS.IsoTemp,                 SID, TID, NonFatal, &RT.IsoTemp,                  1, NonFatal );
+#  if ( EOS == EOS_MULTIGAMMA )
+   LoadField( "MultiGamma_Gamma1",       &RS.MultiGamma_Gamma1,       SID, TID, NonFatal, &RT.MultiGamma_Gamma1,        1, NonFatal );
+   LoadField( "MultiGamma_Gamma2",       &RS.MultiGamma_Gamma2,       SID, TID, NonFatal, &RT.MultiGamma_Gamma2,        1, NonFatal );
+   LoadField( "MultiGamma_Gamma3",       &RS.MultiGamma_Gamma3,       SID, TID, NonFatal, &RT.MultiGamma_Gamma3,        1, NonFatal );
+   LoadField( "MultiGamma_Turnover1",    &RS.MultiGamma_Turnover1,    SID, TID, NonFatal, &RT.MultiGamma_Turnover1,     1, NonFatal );
+   LoadField( "MultiGamma_Turnover2",    &RS.MultiGamma_Turnover2,    SID, TID, NonFatal, &RT.MultiGamma_Turnover2,     1, NonFatal );
+   LoadField( "MultiGamma_Turnover3",    &RS.MultiGamma_Turnover3,    SID, TID, NonFatal, &RT.MultiGamma_Turnover3,     1, NonFatal );
+   LoadField( "MultiGamma_TempBase",     &RS.MultiGamma_TempBase,     SID, TID, NonFatal, &RT.MultiGamma_TempBase,      1, NonFatal );
+#  endif
    LoadField( "MinMod_Coeff",            &RS.MinMod_Coeff,            SID, TID, NonFatal, &RT.MinMod_Coeff,             1, NonFatal );
    LoadField( "MinMod_MaxIter",          &RS.MinMod_MaxIter,          SID, TID, NonFatal, &RT.MinMod_MaxIter,           1, NonFatal );
    LoadField( "Opt__LR_Limiter",         &RS.Opt__LR_Limiter,         SID, TID, NonFatal, &RT.Opt__LR_Limiter,          1, NonFatal );
