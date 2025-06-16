@@ -8,7 +8,7 @@ static double PSC_Mass;            // mass   of the spherical molecule cloud, in
 static double PSC_Radius;          // radius of the spherical molecule cloud, in AU
 static double PSC_Ratio_Dens_Edge; // ratio of central to edge    density
 static double PSC_Ratio_Dens_Env;  // ratio of edge to background density
-static double PSC_Ratio_Force;     // ratio of centrifugal to gravitational force
+static double PSC_Ratio_Energy;    // ratio of rotational to gravitational energy
 
        double PSC_Mass_Code;       // mass   of the spherical molecule cloud, in code unit
        double PSC_Radius_Code;     // radius of the spherical molecule cloud, in code unit
@@ -109,7 +109,7 @@ void LoadInputTestProb( const LoadParaMode_t load_mode, ReadPara_t *ReadPara, HD
    LOAD_PARA( load_mode, "PSC_Radius",             &PSC_Radius,                5.0e3,        Eps_double,       NoMax_double      );
    LOAD_PARA( load_mode, "PSC_Ratio_Dens_Edge",    &PSC_Ratio_Dens_Edge,       1.0e1,        2.0,              NoMax_double      );
    LOAD_PARA( load_mode, "PSC_Ratio_Dens_Env",     &PSC_Ratio_Dens_Env,        1.0e2,        1.0,              NoMax_double      );
-   LOAD_PARA( load_mode, "PSC_Ratio_Force",        &PSC_Ratio_Force,           0.0,          0.0,              NoMax_double      );
+   LOAD_PARA( load_mode, "PSC_Ratio_Energy",       &PSC_Ratio_Energy,          1.0e-2,       0.0,              NoMax_double      );
 
 } // FUNCITON : LoadInputTestProb
 
@@ -168,7 +168,7 @@ void SetParameter()
    PSC_RhoEnv_Code = PSC_RhoBase_Code / ( PSC_Ratio_Dens_Edge * PSC_Ratio_Dens_Env );
 
 // compute the angular velocity
-   PSC_OmegaBase = sqrt( PSC_Ratio_Force * NEWTON_G * PSC_Mass_Code / CUBE(PSC_Radius_Code) );
+   PSC_OmegaBase = sqrt( 3.0 * PSC_Ratio_Energy * NEWTON_G * PSC_Mass_Code / CUBE(PSC_Radius_Code) );
 
 
 // (3) reset other general-purpose parameters
@@ -197,7 +197,7 @@ void SetParameter()
       Aux_Message( stdout, "  ratio of central to edge    density             = % 14.7e\n", PSC_Ratio_Dens_Edge       );
       Aux_Message( stdout, "  ratio of edge to background density             = % 14.7e\n", PSC_Ratio_Dens_Env        );
       Aux_Message( stdout, "  ratio of edge to central    radius              = % 14.7e\n", PSC_Ratio_Rad_Edge        );
-      Aux_Message( stdout, "  ratio of centrifugal to gravitational force     = % 14.7e\n", PSC_Ratio_Force           );
+      Aux_Message( stdout, "  ratio of rotational to gravitational energy     = % 14.7e\n", PSC_Ratio_Energy          );
       Aux_Message( stdout, "  central plateau density                 (g/cm3) = % 14.7e\n", PSC_RhoBase_Code * UNIT_D );
       Aux_Message( stdout, "  background density                      (g/cm3) = % 14.7e\n", PSC_RhoEnv_Code  * UNIT_D );
       Aux_Message( stdout, "  angular velocity                        (rad/s) = % 14.7e\n", PSC_OmegaBase    * UNIT_T );
