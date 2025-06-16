@@ -4,18 +4,18 @@
 
 // problem-specific global variables
 // =======================================================================================
-static double PSC_Mass;            // mass   of the spherical molecule cloud, in solar mass
-static double PSC_Radius;          // radius of the spherical molecule cloud, in AU
+static double PSC_Mass;            // mass   of the spherical molecular cloud, in solar mass
+static double PSC_Radius;          // radius of the spherical molecular cloud, in AU
 static double PSC_Ratio_Dens_Edge; // ratio of central to edge    density
 static double PSC_Ratio_Dens_Env;  // ratio of edge to background density
 static double PSC_Ratio_Energy;    // ratio of rotational to gravitational energy
 
-       double PSC_Mass_Code;       // mass   of the spherical molecule cloud, in code unit
-       double PSC_Radius_Code;     // radius of the spherical molecule cloud, in code unit
+       double PSC_Mass_Code;       // mass   of the spherical molecular cloud, in code unit
+       double PSC_Radius_Code;     // radius of the spherical molecular cloud, in code unit
        double PSC_RhoBase_Code;    // density of central plateau, in code unit
        double PSC_RadBase_Code;    // radius  of central plateau, in code unit
        double PSC_RhoEnv_Code;     // background density, in code unit
-       double PSC_OmegaBase;       // angular velocity of the spherical molecule cloud
+       double PSC_OmegaBase;       // angular velocity of the spherical molecular cloud
 // =======================================================================================
 
 
@@ -191,16 +191,16 @@ void SetParameter()
    if ( MPI_Rank == 0 )
    {
       Aux_Message( stdout, "=============================================================================\n" );
-      Aux_Message( stdout, "  test problem ID                                 = %d\n",      TESTPROB_ID               );
-      Aux_Message( stdout, "  mass   of spherical molecule cloud (solar mass) = % 14.7e\n", PSC_Mass                  );
-      Aux_Message( stdout, "  radius of spherical molecule cloud         (AU) = % 14.7e\n", PSC_Radius                );
-      Aux_Message( stdout, "  ratio of central to edge    density             = % 14.7e\n", PSC_Ratio_Dens_Edge       );
-      Aux_Message( stdout, "  ratio of edge to background density             = % 14.7e\n", PSC_Ratio_Dens_Env        );
-      Aux_Message( stdout, "  ratio of edge to central    radius              = % 14.7e\n", PSC_Ratio_Rad_Edge        );
-      Aux_Message( stdout, "  ratio of rotational to gravitational energy     = % 14.7e\n", PSC_Ratio_Energy          );
-      Aux_Message( stdout, "  central plateau density                 (g/cm3) = % 14.7e\n", PSC_RhoBase_Code * UNIT_D );
-      Aux_Message( stdout, "  background density                      (g/cm3) = % 14.7e\n", PSC_RhoEnv_Code  * UNIT_D );
-      Aux_Message( stdout, "  angular velocity                        (rad/s) = % 14.7e\n", PSC_OmegaBase    * UNIT_T );
+      Aux_Message( stdout, "  test problem ID                                  = %d\n",      TESTPROB_ID               );
+      Aux_Message( stdout, "  mass   of spherical molecular cloud (solar mass) = % 14.7e\n", PSC_Mass                  );
+      Aux_Message( stdout, "  radius of spherical molecular cloud         (AU) = % 14.7e\n", PSC_Radius                );
+      Aux_Message( stdout, "  ratio of central to edge    density              = % 14.7e\n", PSC_Ratio_Dens_Edge       );
+      Aux_Message( stdout, "  ratio of edge to background density              = % 14.7e\n", PSC_Ratio_Dens_Env        );
+      Aux_Message( stdout, "  ratio of edge to central    radius               = % 14.7e\n", PSC_Ratio_Rad_Edge        );
+      Aux_Message( stdout, "  ratio of rotational to gravitational energy      = % 14.7e\n", PSC_Ratio_Energy          );
+      Aux_Message( stdout, "  central plateau density                  (g/cm3) = % 14.7e\n", PSC_RhoBase_Code * UNIT_D );
+      Aux_Message( stdout, "  background density                       (g/cm3) = % 14.7e\n", PSC_RhoEnv_Code  * UNIT_D );
+      Aux_Message( stdout, "  angular velocity                         (rad/s) = % 14.7e\n", PSC_OmegaBase    * UNIT_T );
       Aux_Message( stdout, "=============================================================================\n" );
    }
 
@@ -244,7 +244,7 @@ void SetGridIC( real fluid[], const double x, const double y, const double z, co
 
    double Dens, MomX, MomY, MomZ, Temp, Pres, Eint, Etot;
 
-// assume the molecule cloud undergoes rigid-body rotation along the z direction, if applicable
+// assume the molecular cloud undergoes rigid-body rotation along the z direction, if applicable
    if ( r > PSC_Radius_Code )
    {
       Dens = PSC_RhoEnv_Code;
