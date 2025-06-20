@@ -200,7 +200,7 @@ void SetParameter()
       Aux_Message( stdout, "  ratio of rotational to gravitational energy      = % 14.7e\n", PSC_Ratio_Energy          );
       Aux_Message( stdout, "  central plateau density                  (g/cm3) = % 14.7e\n", PSC_RhoBase_Code * UNIT_D );
       Aux_Message( stdout, "  background density                       (g/cm3) = % 14.7e\n", PSC_RhoEnv_Code  * UNIT_D );
-      Aux_Message( stdout, "  angular velocity                         (rad/s) = % 14.7e\n", PSC_OmegaBase    * UNIT_T );
+      Aux_Message( stdout, "  angular velocity                         (rad/s) = % 14.7e\n", PSC_OmegaBase    / UNIT_T );
       Aux_Message( stdout, "=============================================================================\n" );
    }
 
