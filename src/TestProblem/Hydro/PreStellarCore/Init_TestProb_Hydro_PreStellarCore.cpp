@@ -4,18 +4,24 @@
 
 // problem-specific global variables
 // =======================================================================================
-static double PSC_Mass;            // mass   of the spherical molecular cloud, in solar mass
-static double PSC_Radius;          // radius of the spherical molecular cloud, in AU
-static double PSC_Ratio_Dens_Edge; // ratio of central to edge    density
-static double PSC_Ratio_Dens_Env;  // ratio of edge to background density
-static double PSC_Ratio_Energy;    // ratio of rotational to gravitational energy
+static double PSC_Mass;             // mass   of the spherical molecular cloud, in solar mass
+static double PSC_Radius;           // radius of the spherical molecular cloud, in AU
+static double PSC_Ratio_Dens_Edge;  // ratio of central to edge    density
+static double PSC_Ratio_Dens_Env;   // ratio of edge to background density
+static double PSC_Ratio_Energy;     // ratio of rotational to gravitational energy
 
-       double PSC_Mass_Code;       // mass   of the spherical molecular cloud, in code unit
-       double PSC_Radius_Code;     // radius of the spherical molecular cloud, in code unit
-       double PSC_RhoBase_Code;    // density of central plateau, in code unit
-       double PSC_RadBase_Code;    // radius  of central plateau, in code unit
-       double PSC_RhoEnv_Code;     // background density, in code unit
-       double PSC_OmegaBase;       // angular velocity of the spherical molecular cloud
+       double PSC_Mass_Code;        // mass   of the spherical molecular cloud, in code unit
+       double PSC_Radius_Code;      // radius of the spherical molecular cloud, in code unit
+       double PSC_RhoBase_Code;     // density of central plateau, in code unit
+       double PSC_RadBase_Code;     // radius  of central plateau, in code unit
+       double PSC_RhoEnv_Code;      // background density, in code unit
+       double PSC_OmegaBase;        // angular velocity of the spherical molecular cloud
+
+       bool   PSC_Prof;             // output spherically averaged profile at each global step
+       bool   PSC_Prof_LogBin;      // log/linear bins
+       double PSC_Prof_LogBinRatio; // ratio of adjacent log bins
+       double PSC_Prof_MaxRadius;   // maximum radius in the radial profile, in code units
+       double PSC_Prof_MinBinSize;  // minimum bin size, in code units
 // =======================================================================================
 
 
@@ -110,6 +116,11 @@ void LoadInputTestProb( const LoadParaMode_t load_mode, ReadPara_t *ReadPara, HD
    LOAD_PARA( load_mode, "PSC_Ratio_Dens_Edge",    &PSC_Ratio_Dens_Edge,       1.0e1,        2.0,              NoMax_double      );
    LOAD_PARA( load_mode, "PSC_Ratio_Dens_Env",     &PSC_Ratio_Dens_Env,        1.0e2,        1.0,              NoMax_double      );
    LOAD_PARA( load_mode, "PSC_Ratio_Energy",       &PSC_Ratio_Energy,          1.0e-2,       0.0,              NoMax_double      );
+   LOAD_PARA( load_mode, "PSC_Prof",               &PSC_Prof,                  false,        Useless_bool,     Useless_bool      );
+   LOAD_PARA( load_mode, "PSC_Prof_LogBin",        &PSC_Prof_LogBin,           false,        Useless_bool,     Useless_bool      );
+   LOAD_PARA( load_mode, "PSC_Prof_LogBinRatio",   &PSC_Prof_LogBinRatio,      1.01,         1.0,              NoMax_double      );
+   LOAD_PARA( load_mode, "PSC_Prof_MaxRadius",     &PSC_Prof_MaxRadius,       -1.0,          NoMin_double,     NoMax_double      );
+   LOAD_PARA( load_mode, "PSC_Prof_MinBinSize",    &PSC_Prof_MinBinSize,      -1.0,          NoMin_double,     NoMax_double      );
 
 } // FUNCITON : LoadInputTestProb
 
@@ -186,6 +197,15 @@ void SetParameter()
       PRINT_RESET_PARA( END_T, FORMAT_REAL, "" );
    }
 
+   if ( PSC_Prof_MaxRadius < 0.0 ) {
+      PSC_Prof_MaxRadius = sqrt(3.0) * amr->BoxSize[0];
+      PRINT_RESET_PARA( END_T, PSC_Prof_MaxRadius, "" );
+   }
+
+   if ( PSC_Prof_MinBinSize < 0.0 ) {
+      PSC_Prof_MinBinSize = amr->dh[MAX_LEVEL];
+      PRINT_RESET_PARA( END_T, PSC_Prof_MinBinSize, "" );
+   }
 
 // (4) make a note
    if ( MPI_Rank == 0 )
@@ -201,6 +221,11 @@ void SetParameter()
       Aux_Message( stdout, "  central plateau density                  (g/cm3) = % 14.7e\n", PSC_RhoBase_Code * UNIT_D );
       Aux_Message( stdout, "  background density                       (g/cm3) = % 14.7e\n", PSC_RhoEnv_Code  * UNIT_D );
       Aux_Message( stdout, "  angular velocity                         (rad/s) = % 14.7e\n", PSC_OmegaBase    / UNIT_T );
+      Aux_Message( stdout, "  dump spherically average profile                 = % d\n",     PSC_Prof                  );
+      Aux_Message( stdout, "  log/linear bins in the profile                   = % d\n",     PSC_Prof_LogBin           );
+      Aux_Message( stdout, "  ratio of adjacent log bins                       = % 14.7e\n", PSC_Prof_LogBinRatio      );
+      Aux_Message( stdout, "  maximum radius in the profile                    = % 14.7e\n", PSC_Prof_MaxRadius        );
+      Aux_Message( stdout, "  minimum bin size                                 = % 14.7e\n", PSC_Prof_MinBinSize       );
       Aux_Message( stdout, "=============================================================================\n" );
    }
 
@@ -401,6 +426,91 @@ double Mis_GetTimeStep_PSC( const int lv, const double dTime_dt )
 
 
 //-------------------------------------------------------------------------------------------------------
+// Function    :  Record_PSC
+// Description :  Record the spherically averaged profiles
+//-------------------------------------------------------------------------------------------------------
+void Record_PSC()
+{
+
+   if ( PSC_Prof )
+   {
+
+//    (1-1) find the location of peak density
+      double    Center[3];
+      Extrema_t Extrema;
+
+      Extrema.Field     = _DENS;
+      Extrema.Radius    = __FLT_MAX__;
+      Extrema.Center[0] = amr->BoxCenter[0];
+      Extrema.Center[1] = amr->BoxCenter[1];
+      Extrema.Center[2] = amr->BoxCenter[2];
+
+      Aux_FindExtrema( &Extrema, EXTREMA_MAX, 0, TOP_LEVEL, PATCH_LEAF );
+
+      for (int i=0; i<3; i++)   Center[i] = Extrema.Coord[i];
+
+//    (1-2) shift the center to the box center if it coincides with one of the innermost cells
+      const double Extrema_dh = amr->dh[ Extrema.Level ];
+
+      if (  fabs( Center[0] - amr->BoxCenter[0] ) < Extrema_dh  &&
+            fabs( Center[1] - amr->BoxCenter[1] ) < Extrema_dh  &&
+            fabs( Center[2] - amr->BoxCenter[2] ) < Extrema_dh    )
+         for (int i=0; i<3; i++)   Center[i] = amr->BoxCenter[i];
+
+
+//    (2) compute spherically averaged profile
+      const bool        RemoveEmpty_Yes = true;
+      const double      PrepTime_No     = -1.0;
+      const int         NVar            = 2;
+      const int         MinLv           = 0;
+      const int         MaxLv           = MAX_LEVEL;
+      const PatchType_t PatchType  = PATCH_LEAF;
+
+      Profile_t  Dens, Vrad;
+      Profile_t *Prof_List[] = { &Dens, &Vrad };
+      long       TVar     [] = { _DENS, _VELR };
+
+      Aux_ComputeProfile( Prof_List, Center, PSC_Prof_MaxRadius, PSC_Prof_MinBinSize, PSC_Prof_LogBin,
+                          PSC_Prof_LogBinRatio, RemoveEmpty_Yes, TVar, NVar, MinLv, MaxLv, PatchType, PrepTime_No );
+
+//    (3) dump data
+      if ( MPI_Rank == 0 )
+      {
+         char FileName[MAX_STRING];
+
+         sprintf( FileName, "%s/Profile_SphAve_%06ld", OUTPUT_DIR, Step );
+         FILE *File = fopen( FileName, "w" );
+
+//       metadata
+         Aux_Message( File, "# Step             : %ld\n",                  Step                            );
+         Aux_Message( File, "# Time             : %13.7e\n",               Time[0]                         );
+         Aux_Message( File, "# Center           : %13.7e %13.7e %13.7e\n", Center[0], Center[1], Center[2] );
+         Aux_Message( File, "# Maximum Radius   : %13.7e\n",               Dens.MaxRadius                  );
+         Aux_Message( File, "# Minimum Bin Size : %13.7e\n",               PSC_Prof_MinBinSize             );
+         Aux_Message( File, "# LogBin           : %d\n",                   PSC_Prof_LogBin                 );
+         Aux_Message( File, "# LogBinRatio      : %13.7e\n",               PSC_Prof_LogBinRatio            );
+         Aux_Message( File, "# NBin             : %d\n",                   Dens.NBin                       );
+         Aux_Message( File, "# ------------------------------------------------------------------------\n" );
+         Aux_Message( File, "%5s %9s %22s %22s %22s\n",
+                            "# [1]", "[2]", "[3]", "[4]", "[5]" );
+         Aux_Message( File, "%5s %9s %22s %22s %22s\n",
+                            "# Bin", "NCell", "Bin_Center", "Density", "Vrad" );
+
+//       data
+         for (int i=0; i<Dens.NBin; i++)
+         fprintf( File, "%5d %9ld %22.14e %22.14e %22.14e\n",
+                        i, Dens.NCell[i], Dens.Radius[i], Dens.Data[i] * UNIT_D, Vrad.Data[i] * UNIT_V );
+
+         fclose( File );
+      }
+
+   } // if ( PSC_Prof )
+
+} // FUNCTION : Record_PSC
+
+
+
+//-------------------------------------------------------------------------------------------------------
 // Function    :  Init_TestProb_Hydro_PreStellarCore
 // Description :  Test problem initializer
 //
@@ -434,6 +544,7 @@ void Init_TestProb_Hydro_PreStellarCore()
    Output_HDF5_InputTest_Ptr     = LoadInputTestProb;
 #  endif
    Mis_GetTimeStep_User_Ptr      = Mis_GetTimeStep_PSC;
+   Aux_Record_User_Ptr           = Record_PSC;
 #  endif // #if ( MODEL == HYDRO )
 
 
