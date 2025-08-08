@@ -316,6 +316,91 @@ void SetBFieldIC( real magnetic[], const double x, const double y, const double 
 
 
 //-------------------------------------------------------------------------------------------------------
+// Function    :  Mis_GetTimeStep_PSC
+// Description :  Criteria to estimate the evolution time-step based on the local free-fall time.
+//
+// Note        :  1. This function should be applied to both physical and comoving coordinates and always
+//                   return the evolution time-step (dt) actually used in various solvers
+//                   --> Physical coordinates : dt = physical time interval
+//                       Comoving coordinates : dt = delta(scale_factor) / ( Hubble_parameter*scale_factor^3 )
+//                   --> We convert dt back to the physical time interval, which equals "delta(scale_factor)"
+//                       in the comoving coordinates, in Mis_GetTimeStep()
+//                2. Invoked by Mis_GetTimeStep() using the function pointer "Mis_GetTimeStep_User_Ptr",
+//                   which must be set by a test problem initializer
+//                3. Enabled by the runtime option "OPT__DT_USER"
+//
+// Parameter   :  lv       : Target refinement level
+//                dTime_dt : dTime/dt (== 1.0 if COMOVING is off)
+//
+// Return      :  dt
+//-------------------------------------------------------------------------------------------------------
+double Mis_GetTimeStep_PSC( const int lv, const double dTime_dt )
+{
+
+   const double Factor_FF      = 3.0 * M_PI / 32.0;
+   const double Factor_Scaling = 0.1;
+
+// allocate memory for per-thread arrays
+#  ifdef OPENMP
+   const int NT = OMP_NTHREAD;
+#  else
+   const int NT = 1;
+#  endif
+
+   double  dt_PSC     = HUGE_NUMBER;
+   double *OMP_dt_PSC = new double [NT];
+
+
+#  pragma omp parallel
+   {
+#     ifdef OPENMP
+      const int TID = omp_get_thread_num();
+#     else
+      const int TID = 0;
+#     endif
+
+//    initialize arrays
+      OMP_dt_PSC[TID] = HUGE_NUMBER;
+
+#     pragma omp for schedule( runtime )
+      for (int PID=0; PID<amr->NPatchComma[lv][1]; PID++)
+      {
+
+         for (int k=0; k<PS1; k++)  {
+         for (int j=0; j<PS1; j++)  {
+         for (int i=0; i<PS1; i++)  {
+
+            const real   Dens        = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[DENS][k][j][i];
+            const double dt_ThisCell = SQRT(  Factor_FF / ( NEWTON_G * Dens )  );
+
+
+            OMP_dt_PSC[TID] = FMIN( OMP_dt_PSC[TID], dt_ThisCell );
+
+         }}} // i,j,k
+      } // for (int PID=0; PID<amr->NPatchComma[lv][1]; PID++)
+   } // OpenMP parallel region
+
+
+// find the minimum over all OpenMP threads
+   for (int TID=0; TID<NT; TID++)   dt_PSC = FMIN( dt_PSC, OMP_dt_PSC[TID] );
+
+// free per-thread arrays
+   delete [] OMP_dt_PSC;
+
+
+// find the minimum over all MPI processes
+#  ifndef SERIAL
+   MPI_Allreduce( MPI_IN_PLACE, &dt_PSC, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD );
+#  endif
+
+
+   return Factor_Scaling * dt_PSC;
+
+} // FUNCTION : Mis_GetTimeStep_PSC
+
+
+
+//-------------------------------------------------------------------------------------------------------
 // Function    :  Init_TestProb_Hydro_PreStellarCore
 // Description :  Test problem initializer
 //
@@ -348,6 +433,7 @@ void Init_TestProb_Hydro_PreStellarCore()
 #  ifdef SUPPORT_HDF5
    Output_HDF5_InputTest_Ptr     = LoadInputTestProb;
 #  endif
+   Mis_GetTimeStep_User_Ptr      = Mis_GetTimeStep_PSC;
 #  endif // #if ( MODEL == HYDRO )
 
 
