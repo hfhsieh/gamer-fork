@@ -11,6 +11,6 @@ PSC_Prof_LogBin       0              # log/linear bins [0]
                                      # (true=logarithmic, false=linear)
 PSC_Prof_LogBinRatio  1.01           # ratio of adjacent log bins [1.01]
 PSC_Prof_MaxRadius   -1.0            # maximum radius in the radial profile, in code units [-1.0]
-                                     # (<=0=distance of the farthest vertex to the center)
+                                     # (<=0=sqrt(3) * amr->BoxSize)
 PSC_Prof_MinBinSize  -1.0            # minimum bin size, in code units [-1.0]
                                      # (<=0=use amr->dh[MAX_LEVEL])
