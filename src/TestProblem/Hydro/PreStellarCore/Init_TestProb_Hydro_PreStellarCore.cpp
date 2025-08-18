@@ -18,6 +18,7 @@ static double PSC_Ratio_Energy;     // ratio of rotational to gravitational ener
        double PSC_OmegaBase;        // angular velocity of the spherical molecular cloud
 
        bool   PSC_Prof;             // output spherically averaged profile at each global step
+       int    PSC_Prof_Center;      // center of spherically averaged profile
        bool   PSC_Prof_LogBin;      // log/linear bins
        double PSC_Prof_LogBinRatio; // ratio of adjacent log bins
        double PSC_Prof_MaxRadius;   // maximum radius in the radial profile, in code units
@@ -117,6 +118,7 @@ void LoadInputTestProb( const LoadParaMode_t load_mode, ReadPara_t *ReadPara, HD
    LOAD_PARA( load_mode, "PSC_Ratio_Dens_Env",     &PSC_Ratio_Dens_Env,        1.0e2,        1.0,              NoMax_double      );
    LOAD_PARA( load_mode, "PSC_Ratio_Energy",       &PSC_Ratio_Energy,          1.0e-2,       0.0,              NoMax_double      );
    LOAD_PARA( load_mode, "PSC_Prof",               &PSC_Prof,                  false,        Useless_bool,     Useless_bool      );
+   LOAD_PARA( load_mode, "PSC_Prof_Center",        &PSC_Prof_Center,           2,            1,                4                 );
    LOAD_PARA( load_mode, "PSC_Prof_LogBin",        &PSC_Prof_LogBin,           false,        Useless_bool,     Useless_bool      );
    LOAD_PARA( load_mode, "PSC_Prof_LogBinRatio",   &PSC_Prof_LogBinRatio,      1.01,         1.0,              NoMax_double      );
    LOAD_PARA( load_mode, "PSC_Prof_MaxRadius",     &PSC_Prof_MaxRadius,       -1.0,          NoMin_double,     NoMax_double      );
@@ -222,6 +224,7 @@ void SetParameter()
       Aux_Message( stdout, "  background density                       (g/cm3) = % 14.7e\n", PSC_RhoEnv_Code  * UNIT_D );
       Aux_Message( stdout, "  angular velocity                         (rad/s) = % 14.7e\n", PSC_OmegaBase    / UNIT_T );
       Aux_Message( stdout, "  dump spherically average profile                 = % d\n",     PSC_Prof                  );
+      Aux_Message( stdout, "  center of spherically average profile            = % d\n",     PSC_Prof_Center           );
       Aux_Message( stdout, "  log/linear bins in the profile                   = % d\n",     PSC_Prof_LogBin           );
       Aux_Message( stdout, "  ratio of adjacent log bins                       = % 14.7e\n", PSC_Prof_LogBinRatio      );
       Aux_Message( stdout, "  maximum radius in the profile                    = % 14.7e\n", PSC_Prof_MaxRadius        );
@@ -439,23 +442,70 @@ void Record_PSC()
       double    Center[3];
       Extrema_t Extrema;
 
-      Extrema.Field     = _DENS;
-      Extrema.Radius    = __FLT_MAX__;
-      Extrema.Center[0] = amr->BoxCenter[0];
-      Extrema.Center[1] = amr->BoxCenter[1];
-      Extrema.Center[2] = amr->BoxCenter[2];
+      switch ( PSC_Prof_Center )
+      {
+         case 1: // box center
+         {
+            for (int i=0; i<3; i++)   Center[i] = amr->BoxCenter[i];
+         }
+         break;
 
-      Aux_FindExtrema( &Extrema, EXTREMA_MAX, 0, TOP_LEVEL, PATCH_LEAF );
+         case 2: // density maximum
+         {
+            Extrema.Field     = _DENS;
+            Extrema.Radius    = __FLT_MAX__;
+            Extrema.Center[0] = amr->BoxCenter[0];
+            Extrema.Center[1] = amr->BoxCenter[1];
+            Extrema.Center[2] = amr->BoxCenter[2];
 
-      for (int i=0; i<3; i++)   Center[i] = Extrema.Coord[i];
+            Aux_FindExtrema( &Extrema, EXTREMA_MAX, 0, TOP_LEVEL, PATCH_LEAF );
 
-//    (1-2) shift the center to the box center if it coincides with one of the innermost cells
-      const double Extrema_dh = amr->dh[ Extrema.Level ];
+            for (int i=0; i<3; i++)   Center[i] = Extrema.Coord[i];
 
-      if (  fabs( Center[0] - amr->BoxCenter[0] ) < Extrema_dh  &&
-            fabs( Center[1] - amr->BoxCenter[1] ) < Extrema_dh  &&
-            fabs( Center[2] - amr->BoxCenter[2] ) < Extrema_dh    )
-         for (int i=0; i<3; i++)   Center[i] = amr->BoxCenter[i];
+//          shift the center to the box center if it coincides with one of the innermost cells
+            const double Extrema_dh = amr->dh[ Extrema.Level ];
+
+            if (  fabs( Center[0] - amr->BoxCenter[0] ) < Extrema_dh  &&
+                  fabs( Center[1] - amr->BoxCenter[1] ) < Extrema_dh  &&
+                  fabs( Center[2] - amr->BoxCenter[2] ) < Extrema_dh    )
+               for (int i=0; i<3; i++)   Center[i] = amr->BoxCenter[i];
+         }
+         break;
+
+         case 3: // potential minimum
+         {
+            Extrema.Field     = _POTE;
+            Extrema.Radius    = __FLT_MAX__;
+            Extrema.Center[0] = amr->BoxCenter[0];
+            Extrema.Center[1] = amr->BoxCenter[1];
+            Extrema.Center[2] = amr->BoxCenter[2];
+
+            Aux_FindExtrema( &Extrema, EXTREMA_MIN, 0, TOP_LEVEL, PATCH_LEAF );
+
+            for (int i=0; i<3; i++)   Center[i] = Extrema.Coord[i];
+         }
+         break;
+
+         case 4: // CoM
+         {
+            const double CoM_ref[3]  = { amr->BoxCenter[0], amr->BoxCenter[1], amr->BoxCenter[2] };
+            const double CoM_MaxR    = __FLT_MAX__;
+            const double CoM_MinRho  = 0.0;
+            const long   CoM_Field   = _DENS;
+            const double CoM_TolErrR = __FLT_MAX__;
+            const int    CoM_MaxIter = 1;
+
+            double FinaldR;
+            int    FinalNIter;
+
+            Aux_FindWeightedAverageCenter( Center, CoM_ref, CoM_MaxR, CoM_MinRho, CoM_Field, CoM_TolErrR,
+                                           CoM_MaxIter, &FinaldR, &FinalNIter );
+         }
+         break;
+
+         default:
+            Aux_Error( ERROR_INFO, "unsupported %s = %d !!\n", "PSC_Prof_Center", PSC_Prof_Center );
+      }
 
 
 //    (2) compute spherically averaged profile
@@ -484,6 +534,7 @@ void Record_PSC()
 //       metadata
          Aux_Message( File, "# Step             : %ld\n",                  Step                            );
          Aux_Message( File, "# Time             : %13.7e\n",               Time[0]                         );
+         Aux_Message( File, "# Center Method    : %d\n",                   PSC_Prof_Center                 );
          Aux_Message( File, "# Center           : %13.7e %13.7e %13.7e\n", Center[0], Center[1], Center[2] );
          Aux_Message( File, "# Maximum Radius   : %13.7e\n",               Dens.MaxRadius                  );
          Aux_Message( File, "# Minimum Bin Size : %13.7e\n",               PSC_Prof_MinBinSize             );

@@ -7,6 +7,8 @@ PSC_Ratio_Energy      1.0e-2         # ratio of rotational to gravitational ener
 
 # profile
 PSC_Prof              0              # output spherically averaged profile at each global step [0]
+PSC_Prof_Center       2              # center of spherically averaged profile [2]
+                                     # (0=box center, 2=density maximum, 3=potential minimum, 4=CoM)
 PSC_Prof_LogBin       0              # log/linear bins [0]
                                      # (true=logarithmic, false=linear)
 PSC_Prof_LogBinRatio  1.01           # ratio of adjacent log bins [1.01]
