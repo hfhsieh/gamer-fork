@@ -1498,6 +1498,82 @@ real Hydro_Con2Entr( const real Dens, const real MomX, const real MomY, const re
 
 
 
+#if ( EOS == EOS_NUCLEAR )
+//-------------------------------------------------------------------------------------------------------
+// Function    :  Hydro_Con2Cs2
+// Description :  Evaluate the fluid sound speed squared
+//
+// Note        :  1. Invoke the EoS routine EoS_General() to support different EoS
+//
+// Parameter   :  Dens           : Mass density
+//                MomX/Y/Z       : Momentum density
+//                Engy           : Energy density
+//                Passive        : Passive scalars
+//                Emag           : Magnetic energy density (0.5*B^2) --> For MHD only
+//                EoS_General    : EoS routine to compute the any thermodynamic variables
+//                EoS_AuxArray_* : Auxiliary arrays for EoS_DensEint2Entr()
+//                EoS_Table      : EoS tables for EoS_DensEint2Entr()
+//
+// Return      :  Gas sound speed squared
+//-------------------------------------------------------------------------------------------------------
+GPU_DEVICE
+real Hydro_Con2Cs2( const real Dens, const real MomX, const real MomY, const real MomZ, const real Engy,
+                    const real Passive[], const real Emag, const EoS_GENE_t EoS_General,
+                    const double EoS_AuxArray_Flt[], const int EoS_AuxArray_Int[], const real *const EoS_Table[EOS_NTABLE_MAX] )
+{
+
+// check
+#  ifdef GAMER_DEBUG
+   if ( EoS_General == NULL )
+   {
+#     ifdef __CUDACC__
+      printf( "ERROR : EoS_General == NULL at file <%s>, line <%d>, function <%s> !!\n",
+              __FILE__, __LINE__, __FUNCTION__ );
+#     else
+      Aux_Error( ERROR_INFO, "EoS_General == NULL !!\n" );
+#     endif
+   }
+#  endif // #ifdef GAMER_DEBUG
+
+
+   const bool CheckMinEint_No = false;
+   real Eint, Cs2;
+
+   Eint = Hydro_Con2Eint( Dens, MomX, MomY, MomZ, Engy, CheckMinEint_No, NULL_REAL, Emag,
+                          NULL, NULL, NULL, NULL, NULL );
+
+#  if ( NUC_TABLE_MODE == NUC_TABLE_MODE_TEMP )
+   const int  NTarget = 0;
+#  else
+   const int  NTarget = 1;
+#  endif
+         int  In_Int[NTarget+1];
+         real In_Flt[4], Out[NTarget+1];
+
+   In_Flt[0] = Dens;
+   In_Flt[1] = Eint;
+   In_Flt[2] = Passive[ YE - NCOMP_FLUID ] / Dens;
+#  ifdef TEMP_IG
+   In_Flt[3] = Passive[ TEMP_IG - NCOMP_FLUID ];
+#  else
+   In_Flt[3] = NULL_REAL;
+#  endif
+
+   In_Int[0] = NTarget;
+#  if ( NUC_TABLE_MODE == NUC_TABLE_MODE_ENGY )
+   In_Int[1] = NUC_VAR_IDX_CSQR;
+#  endif
+
+   EoS_General( 0, Out, In_Flt, In_Int, EoS_AuxArray_Flt, EoS_AuxArray_Int, EoS_Table );
+   Cs2 = Out[0];
+
+   return Cs2;
+
+} // FUNCTION : Hydro_Con2Cs2
+#endif
+
+
+
 //-------------------------------------------------------------------------------------------------------
 // Function    :  Hydro_NormalizePassive
 // Description :  Normalize the target passive scalars so that the sum of their mass density is equal to

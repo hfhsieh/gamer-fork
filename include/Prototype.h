@@ -130,6 +130,9 @@ real Hydro_Con2Entr( const real Dens, const real MomX, const real MomY, const re
                      const real Passive[], const bool CheckMinEntr, const real MinEntr, const real Emag,
                      const EoS_DE2S_t EoS_DensEint2Entr, const double EoS_AuxArray_Flt[], const int EoS_AuxArray_Int[],
                      const real *const EoS_Table[EOS_NTABLE_MAX] );
+real Hydro_Con2Cs2( const real Dens, const real MomX, const real MomY, const real MomZ, const real Engy,
+                    const real Passive[], const real Emag, const EoS_GENE_t EoS_General,
+                    const double EoS_AuxArray_Flt[], const int EoS_AuxArray_Int[], const real *const EoS_Table[EOS_NTABLE_MAX] );
 real Hydro_CheckMinPres( const real InPres, const real MinPres );
 real Hydro_CheckMinEint( const real InEint, const real MinEint );
 real Hydro_CheckMinTemp( const real InTemp, const real MinTemp );

@@ -52,7 +52,7 @@ void Hydro_RiemannSolver_HLLC( const int XYZ, real Flux_Out[], const real L_In[]
 #elif ( CHECK_INTERMEDIATE == HLLD )
 void Hydro_RiemannSolver_HLLD( const int XYZ, real Flux_Out[], const real L_In[], const real R_In[],
                                const real Dens, const real MinPres, const EoS_DE2P_t EoS_DensEint2Pres,
-                               const EoS_DP2C_t EoS_DensPres2CSqr, const double EoS_AuxArray_Flt[],
+                               const EoS_DP2C_t EoS_DensPres2CSqr, const EoS_GENE_t EoS_General, const double EoS_AuxArray_Flt[],
                                const int EoS_AuxArray_Int[], const real* const EoS_Table[EOS_NTABLE_MAX] );
 #endif
 
@@ -86,7 +86,7 @@ void Hydro_RiemannSolver_HLLD( const int XYZ, real Flux_Out[], const real L_In[]
 GPU_DEVICE
 void Hydro_RiemannSolver_Roe( const int XYZ, real Flux_Out[], const real L_In[], const real R_In[],
                               const real MinDens, const real MinPres, const EoS_DE2P_t EoS_DensEint2Pres,
-                              const EoS_DP2C_t EoS_DensPres2CSqr, const double EoS_AuxArray_Flt[],
+                              const EoS_DP2C_t EoS_DensPres2CSqr, const EoS_GENE_t EoS_General, const double EoS_AuxArray_Flt[],
                               const int EoS_AuxArray_Int[], const real* const EoS_Table[EOS_NTABLE_MAX] )
 {
 
@@ -650,7 +650,7 @@ void Hydro_RiemannSolver_Roe( const int XYZ, real Flux_Out[], const real L_In[],
             Hydro_RiemannSolver_HLLC ( 0, Flux_Out, L, R, MinDens, MinPres, EoS_DensEint2Pres, EoS_DensPres2CSqr,
                                        NULL, NULL, EoS_AuxArray_Flt, EoS_AuxArray_Int, EoS_Table );
 #           elif ( CHECK_INTERMEDIATE == HLLD  &&  defined MHD )
-            Hydro_RiemannSolver_HLLD ( 0, Flux_Out, L, R, MinDens, MinPres, EoS_DensEint2Pres, EoS_DensPres2CSqr,
+            Hydro_RiemannSolver_HLLD ( 0, Flux_Out, L, R, MinDens, MinPres, EoS_DensEint2Pres, EoS_DensPres2CSqr, EoS_General,
                                        EoS_AuxArray_Flt, EoS_AuxArray_Int, EoS_Table );
 
 #           else

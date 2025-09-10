@@ -34,24 +34,24 @@ void ResetLongB( real L[], real R[], const real FC_B, const int d );
 #endif
 extern void Hydro_RiemannSolver_Roe ( const int XYZ, real Flux_Out[], const real L_In[], const real R_In[],
                                       const real MinDens, const real MinPres, const EoS_DE2P_t EoS_DensEint2Pres,
-                                      const EoS_DP2C_t EoS_DensPres2CSqr, const double EoS_AuxArray_Flt[],
+                                      const EoS_DP2C_t EoS_DensPres2CSqr, const EoS_GENE_t EoS_General, const double EoS_AuxArray_Flt[],
                                       const int EoS_AuxArray_Int[], const real* const EoS_Table[EOS_NTABLE_MAX] );
 extern void Hydro_RiemannSolver_HLLC( const int XYZ, real Flux_Out[], const real L_In[], const real R_In[],
                                       const real MinDens, const real MinPres, const EoS_DE2P_t EoS_DensEint2Pres,
-                                      const EoS_DP2C_t EoS_DensPres2CSqr, const EoS_GUESS_t EoS_GuessHTilde,
-                                      const EoS_H2TEM_t EoS_HTilde2Temp,
+                                      const EoS_DP2C_t EoS_DensPres2CSqr, const EoS_GENE_t EoS_General,
+                                      const EoS_GUESS_t EoS_GuessHTilde, const EoS_H2TEM_t EoS_HTilde2Temp,
                                       const double EoS_AuxArray_Flt[], const int EoS_AuxArray_Int[],
                                       const real* const EoS_Table[EOS_NTABLE_MAX] );
 extern void Hydro_RiemannSolver_HLLE( const int XYZ, real Flux_Out[], const real L_In[], const real R_In[],
                                       const real MinDens, const real MinPres, const EoS_DE2P_t EoS_DensEint2Pres,
-                                      const EoS_DP2C_t EoS_DensPres2CSqr, const EoS_GUESS_t EoS_GuessHTilde,
-                                      const EoS_H2TEM_t EoS_HTilde2Temp,
+                                      const EoS_DP2C_t EoS_DensPres2CSqr, const EoS_GENE_t EoS_General,
+                                      const EoS_GUESS_t EoS_GuessHTilde, const EoS_H2TEM_t EoS_HTilde2Temp,
                                       const double EoS_AuxArray_Flt[], const int EoS_AuxArray_Int[],
                                       const real* const EoS_Table[EOS_NTABLE_MAX] );
 #ifdef MHD
 extern void Hydro_RiemannSolver_HLLD( const int XYZ, real Flux_Out[], const real L_In[], const real R_In[],
                                       const real MinDens, const real MinPres, const EoS_DE2P_t EoS_DensEint2Pres,
-                                      const EoS_DP2C_t EoS_DensPres2CSqr, const double EoS_AuxArray_Flt[],
+                                      const EoS_DP2C_t EoS_DensPres2CSqr, const EoS_GENE_t EoS_General, const double EoS_AuxArray_Flt[],
                                       const int EoS_AuxArray_Int[], const real* const EoS_Table[EOS_NTABLE_MAX] );
 #endif
 #endif // #if ( MODEL == HYDRO )
@@ -678,14 +678,14 @@ void CorrectUnphysical( const int lv, const int NPG, const int *PID0_List,
                         ResetLongB( VarL[d], VarC,    FC_B[0], d );  // reset the longitudinal B field
 #                       endif
                         Hydro_RiemannSolver_Roe ( d, FluxL[d], VarL[d], VarC,    MIN_DENS, MIN_PRES,
-                                                  EoS_DensEint2Pres_CPUPtr, EoS_DensPres2CSqr_CPUPtr,
+                                                  EoS_DensEint2Pres_CPUPtr, EoS_DensPres2CSqr_CPUPtr, EoS_General_CPUPtr,
                                                   EoS_AuxArray_Flt, EoS_AuxArray_Int, h_EoS_Table );
 
 #                       ifdef MHD
                         ResetLongB( VarC,    VarR[d], FC_B[1], d );  // reset the longitudinal B field
 #                       endif
                         Hydro_RiemannSolver_Roe ( d, FluxR[d], VarC,    VarR[d], MIN_DENS, MIN_PRES,
-                                                  EoS_DensEint2Pres_CPUPtr, EoS_DensPres2CSqr_CPUPtr,
+                                                  EoS_DensEint2Pres_CPUPtr, EoS_DensPres2CSqr_CPUPtr, EoS_General_CPUPtr,
                                                   EoS_AuxArray_Flt, EoS_AuxArray_Int, h_EoS_Table );
 
 //                      restore the cell-centered B field and energy of the central cell
@@ -698,11 +698,11 @@ void CorrectUnphysical( const int lv, const int NPG, const int *PID0_List,
 #                    ifndef MHD
                      case RSOLVER_1ST_HLLC:
                         Hydro_RiemannSolver_HLLC( d, FluxL[d], VarL[d], VarC,    MIN_DENS, MIN_PRES,
-                                                  EoS_DensEint2Pres_CPUPtr, EoS_DensPres2CSqr_CPUPtr,
+                                                  EoS_DensEint2Pres_CPUPtr, EoS_DensPres2CSqr_CPUPtr, EoS_General_CPUPtr,
                                                   EoS_GuessHTilde_CPUPtr, EoS_HTilde2Temp_CPUPtr,
                                                   EoS_AuxArray_Flt, EoS_AuxArray_Int, h_EoS_Table );
                         Hydro_RiemannSolver_HLLC( d, FluxR[d], VarC,    VarR[d], MIN_DENS, MIN_PRES,
-                                                  EoS_DensEint2Pres_CPUPtr, EoS_DensPres2CSqr_CPUPtr,
+                                                  EoS_DensEint2Pres_CPUPtr, EoS_DensPres2CSqr_CPUPtr, EoS_General_CPUPtr,
                                                   EoS_GuessHTilde_CPUPtr, EoS_HTilde2Temp_CPUPtr,
                                                   EoS_AuxArray_Flt, EoS_AuxArray_Int, h_EoS_Table );
                      break;
@@ -713,7 +713,7 @@ void CorrectUnphysical( const int lv, const int NPG, const int *PID0_List,
                         ResetLongB( VarL[d], VarC,    FC_B[0], d );  // reset the longitudinal B field
 #                       endif
                         Hydro_RiemannSolver_HLLE( d, FluxL[d], VarL[d], VarC,    MIN_DENS, MIN_PRES,
-                                                  EoS_DensEint2Pres_CPUPtr, EoS_DensPres2CSqr_CPUPtr,
+                                                  EoS_DensEint2Pres_CPUPtr, EoS_DensPres2CSqr_CPUPtr, EoS_General_CPUPtr,
                                                   EoS_GuessHTilde_CPUPtr, EoS_HTilde2Temp_CPUPtr,
                                                   EoS_AuxArray_Flt, EoS_AuxArray_Int, h_EoS_Table );
 
@@ -721,7 +721,7 @@ void CorrectUnphysical( const int lv, const int NPG, const int *PID0_List,
                         ResetLongB( VarC,    VarR[d], FC_B[1], d );  // reset the longitudinal B field
 #                       endif
                         Hydro_RiemannSolver_HLLE( d, FluxR[d], VarC,    VarR[d], MIN_DENS, MIN_PRES,
-                                                  EoS_DensEint2Pres_CPUPtr, EoS_DensPres2CSqr_CPUPtr,
+                                                  EoS_DensEint2Pres_CPUPtr, EoS_DensPres2CSqr_CPUPtr, EoS_General_CPUPtr,
                                                   EoS_GuessHTilde_CPUPtr, EoS_HTilde2Temp_CPUPtr,
                                                   EoS_AuxArray_Flt, EoS_AuxArray_Int, h_EoS_Table );
 
@@ -738,14 +738,14 @@ void CorrectUnphysical( const int lv, const int NPG, const int *PID0_List,
                         ResetLongB( VarL[d], VarC,    FC_B[0], d );  // reset the longitudinal B field
 #                       endif
                         Hydro_RiemannSolver_HLLD( d, FluxL[d], VarL[d], VarC,    MIN_DENS, MIN_PRES,
-                                                  EoS_DensEint2Pres_CPUPtr, EoS_DensPres2CSqr_CPUPtr,
+                                                  EoS_DensEint2Pres_CPUPtr, EoS_DensPres2CSqr_CPUPtr, EoS_General_CPUPtr,
                                                   EoS_AuxArray_Flt, EoS_AuxArray_Int, h_EoS_Table );
 
 #                       ifdef MHD
                         ResetLongB( VarC,    VarR[d], FC_B[1], d );  // reset the longitudinal B field
 #                       endif
                         Hydro_RiemannSolver_HLLD( d, FluxR[d], VarC,    VarR[d], MIN_DENS, MIN_PRES,
-                                                  EoS_DensEint2Pres_CPUPtr, EoS_DensPres2CSqr_CPUPtr,
+                                                  EoS_DensEint2Pres_CPUPtr, EoS_DensPres2CSqr_CPUPtr, EoS_General_CPUPtr,
                                                   EoS_AuxArray_Flt, EoS_AuxArray_Int, h_EoS_Table );
 
 //                      restore the cell-centered B field and energy of the central cell
@@ -824,21 +824,21 @@ void CorrectUnphysical( const int lv, const int NPG, const int *PID0_List,
                         {
                            case RSOLVER_1ST_ROE:
                               Hydro_RiemannSolver_Roe ( d, FluxL_1D, Corr1D_InOut_PtrL, Corr1D_InOut_PtrC, MIN_DENS, MIN_PRES,
-                                                        EoS_DensEint2Pres_CPUPtr, EoS_DensPres2CSqr_CPUPtr,
+                                                        EoS_DensEint2Pres_CPUPtr, EoS_DensPres2CSqr_CPUPtr, EoS_General_CPUPtr,
                                                         EoS_AuxArray_Flt, EoS_AuxArray_Int, h_EoS_Table );
                               Hydro_RiemannSolver_Roe ( d, FluxR_1D, Corr1D_InOut_PtrC, Corr1D_InOut_PtrR, MIN_DENS, MIN_PRES,
-                                                        EoS_DensEint2Pres_CPUPtr, EoS_DensPres2CSqr_CPUPtr,
+                                                        EoS_DensEint2Pres_CPUPtr, EoS_DensPres2CSqr_CPUPtr, EoS_General_CPUPtr,
                                                         EoS_AuxArray_Flt, EoS_AuxArray_Int, h_EoS_Table );
                            break;
 
 #                          ifndef MHD
                            case RSOLVER_1ST_HLLC:
                               Hydro_RiemannSolver_HLLC( d, FluxL_1D, Corr1D_InOut_PtrL, Corr1D_InOut_PtrC, MIN_DENS, MIN_PRES,
-                                                        EoS_DensEint2Pres_CPUPtr, EoS_DensPres2CSqr_CPUPtr,
+                                                        EoS_DensEint2Pres_CPUPtr, EoS_DensPres2CSqr_CPUPtr, EoS_General_CPUPtr,
                                                         EoS_GuessHTilde_CPUPtr, EoS_HTilde2Temp_CPUPtr,
                                                         EoS_AuxArray_Flt, EoS_AuxArray_Int, h_EoS_Table );
                               Hydro_RiemannSolver_HLLC( d, FluxR_1D, Corr1D_InOut_PtrC, Corr1D_InOut_PtrR, MIN_DENS, MIN_PRES,
-                                                        EoS_DensEint2Pres_CPUPtr, EoS_DensPres2CSqr_CPUPtr,
+                                                        EoS_DensEint2Pres_CPUPtr, EoS_DensPres2CSqr_CPUPtr, EoS_General_CPUPtr,
                                                         EoS_GuessHTilde_CPUPtr, EoS_HTilde2Temp_CPUPtr,
                                                         EoS_AuxArray_Flt, EoS_AuxArray_Int, h_EoS_Table );
                            break;
@@ -846,11 +846,11 @@ void CorrectUnphysical( const int lv, const int NPG, const int *PID0_List,
 
                            case RSOLVER_1ST_HLLE:
                               Hydro_RiemannSolver_HLLE( d, FluxL_1D, Corr1D_InOut_PtrL, Corr1D_InOut_PtrC, MIN_DENS, MIN_PRES,
-                                                        EoS_DensEint2Pres_CPUPtr, EoS_DensPres2CSqr_CPUPtr,
+                                                        EoS_DensEint2Pres_CPUPtr, EoS_DensPres2CSqr_CPUPtr, EoS_General_CPUPtr,
                                                         EoS_GuessHTilde_CPUPtr, EoS_HTilde2Temp_CPUPtr,
                                                         EoS_AuxArray_Flt, EoS_AuxArray_Int, h_EoS_Table );
                               Hydro_RiemannSolver_HLLE( d, FluxR_1D, Corr1D_InOut_PtrC, Corr1D_InOut_PtrR, MIN_DENS, MIN_PRES,
-                                                        EoS_DensEint2Pres_CPUPtr, EoS_DensPres2CSqr_CPUPtr,
+                                                        EoS_DensEint2Pres_CPUPtr, EoS_DensPres2CSqr_CPUPtr, EoS_General_CPUPtr,
                                                         EoS_GuessHTilde_CPUPtr, EoS_HTilde2Temp_CPUPtr,
                                                         EoS_AuxArray_Flt, EoS_AuxArray_Int, h_EoS_Table );
                            break;
@@ -860,10 +860,10 @@ void CorrectUnphysical( const int lv, const int NPG, const int *PID0_List,
                               Aux_Error( ERROR_INFO, "RSOLVER_1ST_HLLD in MHD is NOT supported yet !!\n" );
                               /*
                               Hydro_RiemannSolver_HLLD( d, FluxL_1D, Corr1D_InOut_PtrL, Corr1D_InOut_PtrC, MIN_DENS, MIN_PRES,
-                                                        EoS_DensEint2Pres_CPUPtr, EoS_DensPres2CSqr_CPUPtr,
+                                                        EoS_DensEint2Pres_CPUPtr, EoS_DensPres2CSqr_CPUPtr, EoS_General_CPUPtr,
                                                         EoS_AuxArray_Flt, EoS_AuxArray_Int, h_EoS_Table );
                               Hydro_RiemannSolver_HLLD( d, FluxR_1D, Corr1D_InOut_PtrC, Corr1D_InOut_PtrR, MIN_DENS, MIN_PRES,
-                                                        EoS_DensEint2Pres_CPUPtr, EoS_DensPres2CSqr_CPUPtr,
+                                                        EoS_DensEint2Pres_CPUPtr, EoS_DensPres2CSqr_CPUPtr, EoS_General_CPUPtr,
                                                         EoS_AuxArray_Flt, EoS_AuxArray_Int, h_EoS_Table );
                               */
                            break;

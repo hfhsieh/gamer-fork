@@ -63,7 +63,7 @@ void Hydro_Con2Pri( const real In[], real Out[], const real MinPres,
 GPU_DEVICE
 void Hydro_RiemannSolver_HLLD( const int XYZ, real Flux_Out[], const real L_In[], const real R_In[],
                                const real MinDens, const real MinPres, const EoS_DE2P_t EoS_DensEint2Pres,
-                               const EoS_DP2C_t EoS_DensPres2CSqr, const double EoS_AuxArray_Flt[],
+                               const EoS_DP2C_t EoS_DensPres2CSqr, const EoS_GENE_t EoS_General, const double EoS_AuxArray_Flt[],
                                const int EoS_AuxArray_Int[], const real* const EoS_Table[EOS_NTABLE_MAX] )
 {
 
@@ -142,6 +142,24 @@ void Hydro_RiemannSolver_HLLD( const int XYZ, real Flux_Out[], const real L_In[]
    PT_R        = Pri_R[4] + B2R_d2;
 
    a2          = EoS_DensPres2CSqr( Con_L[0], Pri_L[4], Con_L+NCOMP_FLUID, EoS_AuxArray_Flt, EoS_AuxArray_Int, EoS_Table );
+
+#  if ( EOS == EOS_NUCLEAR )
+   if ( a2 != a2 )
+   {
+#     ifdef MHD
+      const real Bx   = Con_L[ MAG_OFFSET + 0 ];
+      const real By   = Con_L[ MAG_OFFSET + 1 ];
+      const real Bz   = Con_L[ MAG_OFFSET + 2 ];
+      const real Emag = (real)0.5*( SQR(Bx) + SQR(By) + SQR(Bz) );
+#     else
+      const real Emag = NULL_REAL;
+#     endif
+
+      a2 = Hydro_Con2Cs2( Con_L[0], Con_L[1], Con_L[2], Con_L[3], Con_L[4], Con_L+NCOMP_FLUID, Emag,
+                          EoS_General, EoS_AuxArray_Flt, EoS_AuxArray_Int, EoS_Table );
+   }
+#  endif
+
    Cax2        = Bx2*_RhoL;
    Cat2        = BtL2*_RhoL;
    Ca2_plus_a2 = Cat2 + Cax2 + a2;
@@ -163,6 +181,24 @@ void Hydro_RiemannSolver_HLLD( const int XYZ, real Flux_Out[], const real L_In[]
    Cf_L = SQRT( Cf2 );  // Cf2 is positive definite using the above formula
 
    a2          = EoS_DensPres2CSqr( Con_R[0], Pri_R[4], Con_R+NCOMP_FLUID, EoS_AuxArray_Flt, EoS_AuxArray_Int, EoS_Table );
+
+#  if ( EOS == EOS_NUCLEAR )
+   if ( a2 != a2 )
+   {
+#     ifdef MHD
+      const real Bx   = Con_R[ MAG_OFFSET + 0 ];
+      const real By   = Con_R[ MAG_OFFSET + 1 ];
+      const real Bz   = Con_R[ MAG_OFFSET + 2 ];
+      const real Emag = (real)0.5*( SQR(Bx) + SQR(By) + SQR(Bz) );
+#     else
+      const real Emag = NULL_REAL;
+#     endif
+
+      a2 = Hydro_Con2Cs2( Con_R[0], Con_R[1], Con_R[2], Con_R[3], Con_R[4], Con_R+NCOMP_FLUID, Emag,
+                          EoS_General, EoS_AuxArray_Flt, EoS_AuxArray_Int, EoS_Table );
+   }
+#  endif
+
    Cax2        = Bx2*_RhoR;
    Cat2        = BtR2*_RhoR;
    Ca2_plus_a2 = Cat2 + Cax2 + a2;

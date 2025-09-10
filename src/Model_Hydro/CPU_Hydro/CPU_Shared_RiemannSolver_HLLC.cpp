@@ -58,8 +58,8 @@ void Hydro_Con2Flux( const int XYZ, real Flux[], const real In[], const real Min
 GPU_DEVICE
 void Hydro_RiemannSolver_HLLC( const int XYZ, real Flux_Out[], const real L_In[], const real R_In[],
                                const real MinDens, const real MinPres, const EoS_DE2P_t EoS_DensEint2Pres,
-                               const EoS_DP2C_t EoS_DensPres2CSqr, const EoS_GUESS_t EoS_GuessHTilde,
-                               const EoS_H2TEM_t EoS_HTilde2Temp,
+                               const EoS_DP2C_t EoS_DensPres2CSqr, const EoS_GENE_t EoS_General,
+                               const EoS_GUESS_t EoS_GuessHTilde, const EoS_H2TEM_t EoS_HTilde2Temp,
                                const double EoS_AuxArray_Flt[], const int EoS_AuxArray_Int[],
                                const real* const EoS_Table[EOS_NTABLE_MAX] )
 {
@@ -390,8 +390,8 @@ void Hydro_RiemannSolver_HLLC( const int XYZ, real Flux_Out[], const real L_In[]
 GPU_DEVICE
 void Hydro_RiemannSolver_HLLC( const int XYZ, real Flux_Out[], const real L_In[], const real R_In[],
                                const real MinDens, const real MinPres, const EoS_DE2P_t EoS_DensEint2Pres,
-                               const EoS_DP2C_t EoS_DensPres2CSqr, const EoS_GUESS_t EoS_GuessHTilde,
-                               const EoS_H2TEM_t EoS_HTilde2Temp,
+                               const EoS_DP2C_t EoS_DensPres2CSqr, const EoS_GENE_t EoS_General,
+                               const EoS_GUESS_t EoS_GuessHTilde, const EoS_H2TEM_t EoS_HTilde2Temp,
                                const double EoS_AuxArray_Flt[], const int EoS_AuxArray_Int[],
                                const real* const EoS_Table[EOS_NTABLE_MAX] )
 {
@@ -438,6 +438,20 @@ void Hydro_RiemannSolver_HLLC( const int XYZ, real Flux_Out[], const real L_In[]
                            EoS_AuxArray_Flt, EoS_AuxArray_Int, EoS_Table, NULL );
    Cs_L  = SQRT(  EoS_DensPres2CSqr( L[0], P_L, L+NCOMP_FLUID, EoS_AuxArray_Flt, EoS_AuxArray_Int, EoS_Table )  );
    Cs_R  = SQRT(  EoS_DensPres2CSqr( R[0], P_R, R+NCOMP_FLUID, EoS_AuxArray_Flt, EoS_AuxArray_Int, EoS_Table )  );
+
+#  if ( EOS == EOS_NUCLEAR )
+   if ( Cs_L != Cs_L )
+   {
+      Cs_L = SQRT(  Hydro_Con2Cs2( L[0], L[1], L[2], L[3], L[4], L+NCOMP_FLUID, NULL_REAL,
+                                   EoS_General, EoS_AuxArray_Flt, EoS_AuxArray_Int, EoS_Table )  );
+   }
+
+   if ( Cs_R != Cs_R )
+   {
+      Cs_R = SQRT(  Hydro_Con2Cs2( R[0], R[1], R[2], R[3], R[4], R+NCOMP_FLUID, NULL_REAL,
+                                   EoS_General, EoS_AuxArray_Flt, EoS_AuxArray_Int, EoS_Table )  );
+   }
+#  endif
 
 #  ifdef CHECK_UNPHYSICAL_IN_FLUID
    Hydro_IsUnphysical_Single( P_R, "pressure", (real)0.0, HUGE_NUMBER, ERROR_INFO, UNPHY_VERBOSE );
