@@ -1,6 +1,14 @@
 #include "GAMER.h"
 
 
+#ifdef SUPPORT_HDF5
+extern template
+herr_t LoadField( const char *FieldName, void *FieldPtr, const hid_t H5_SetID_Target,
+                  const hid_t H5_TypeID_Target, const bool Fatal_Nonexist,
+                  const int *ComprPtr, const int NCompr, const bool Fatal_Compr );
+#endif
+
+
 
 // problem-specific global variables
 // =======================================================================================
@@ -358,6 +366,7 @@ void Init_TestProb_Template()
 #  ifdef SUPPORT_HDF5
    Output_HDF5_InputTest_Ptr         = LoadInputTestProb;
    Output_HDF5_UserPara_Ptr          = NULL; //                                       example: Output/Output_DumData_Total_HDF5.cpp --> Output_HDF5_UserPara_Template()
+   Input_HDF5_UserPara_Ptr           = NULL; //                                       example: Input/Init_ByRestart_HDF5.cpp --> Input_HDF5_UserPara_Template()
 #  endif
 
 
