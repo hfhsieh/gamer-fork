@@ -1,14 +1,6 @@
 #include "GAMER.h"
 
 
-#ifdef SUPPORT_HDF5
-extern template
-herr_t LoadField( const char *FieldName, void *FieldPtr, const hid_t H5_SetID_Target,
-                  const hid_t H5_TypeID_Target, const bool Fatal_Nonexist,
-                  const int *ComprPtr, const int NCompr, const bool Fatal_Compr );
-#endif
-
-
 
 // problem-specific global variables
 // =======================================================================================

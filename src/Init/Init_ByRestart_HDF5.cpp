@@ -2832,4 +2832,11 @@ void Input_HDF5_UserPara_Template( const hid_t SID, const hid_t TID )
 
 
 
+// explicit template instantiation
+template herr_t LoadField <int> ( const char *FieldName, void *FieldPtr, const hid_t H5_SetID_Target,
+                                  const hid_t H5_TypeID_Target, const bool Fatal_Nonexist,
+                                  const int *ComprPtr, const int NCompr, const bool Fatal_Compr );
+
+
+
 #endif // #ifdef SUPPORT_HDF5

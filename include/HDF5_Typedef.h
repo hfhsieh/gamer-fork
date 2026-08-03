@@ -43,6 +43,10 @@ herr_t LoadField( const char *FieldName, void *FieldPtr, const hid_t H5_SetID_Ta
                   const hid_t H5_TypeID_Target, const bool Fatal_Nonexist,
                   const T *ComprPtr, const int NCompr, const bool Fatal_Compr );
 
+extern template herr_t LoadField <int> ( const char *FieldName, void *FieldPtr, const hid_t H5_SetID_Target,
+                                         const hid_t H5_TypeID_Target, const bool Fatal_Nonexist,
+                                         const int *ComprPtr, const int NCompr, const bool Fatal_Compr );
+
 
 
 
