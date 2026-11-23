@@ -1083,12 +1083,29 @@ void Src_Leakage_ComputeLeak( const real Dens_Code, const real Temp_Kelv, const 
       Lum_tot += Lum[k];
    }
 
-
 // the factor Const_hc_MeVcm_CUBE is included here
    *dEdt  = -Lum_tot / ( Dens_CGS * Const_hc_MeVcm_CUBE );
    *dYedt = (  R_eff[1] - Heat_Eff[1] / ( Heat_EAve[1] * Const_MeV )
              - R_eff[0] + Heat_Eff[0] / ( Heat_EAve[0] * Const_MeV ) )
           * Const_mn / ( Dens_CGS * Const_hc_MeVcm_CUBE );
+
+
+// (8) final check
+#  ifdef GAMER_DEBUG
+   if (  Hydro_IsUnphysical_Single( *dEdt, "leakage energy heating rate",
+                                    -HUGE_NUMBER, HUGE_NUMBER, ERROR_INFO, UNPHY_VERBOSE )  ||
+         Hydro_IsUnphysical_Single( *dYedt, "leakage Ye heating rate",
+                                    -HUGE_NUMBER, HUGE_NUMBER, ERROR_INFO, UNPHY_VERBOSE )     )
+   {
+      printf( "   Dens_CGS=%14.7e, Temp_Kelv=%14.7e, Ye=%14.7e\n", Dens_CGS, Temp_Kelv, Ye );
+      printf( "   dEdt_CGS=%14.7e, dYedt=%14.7e\n", *dEdt, *dYedt );
+
+      for (int n=0; n<NType_Neutrino; n++)
+      printf( "   n=%d: tau=%14.7e, chi=%14.7e, Heat_Flux=%14.7e, Heat_ERms=%14.7e, Heat_EAve=%14.7e, Heat_Eff=%14.7e, Lum=%14.7e, R_eff=%14.7e\n",
+                  n, tau[n], chi[n], Heat_Flux[n], Heat_ERms[n], Heat_EAve[n], Heat_Eff[n], Lum[n], R_eff[n] );
+   }
+#  endif // GAMER_DEBUG
+
 
 } // FUNCTION : Src_Leakage_ComputeLeak
 
