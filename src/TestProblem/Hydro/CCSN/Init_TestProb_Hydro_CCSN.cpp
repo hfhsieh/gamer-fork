@@ -187,8 +187,8 @@ void LoadInputTestProb( const LoadParaMode_t load_mode, ReadPara_t *ReadPara, HD
    LOAD_PARA( load_mode, "CCSN_Eint_Mode",           &CCSN_Eint_Mode,            2,            1,                2                 );
    LOAD_PARA( load_mode, "CCSN_CC_MaxRefine_Flag1",  &CCSN_CC_MaxRefine_Flag1,   false,        Useless_bool,     Useless_bool      );
    LOAD_PARA( load_mode, "CCSN_CC_MaxRefine_Flag2",  &CCSN_CC_MaxRefine_Flag2,   false,        Useless_bool,     Useless_bool      );
-   LOAD_PARA( load_mode, "CCSN_CC_MaxRefine_LV1",    &CCSN_CC_MaxRefine_LV1,    -1,            NoMin_int,        MAX_LEVEL-1       );
-   LOAD_PARA( load_mode, "CCSN_CC_MaxRefine_LV2",    &CCSN_CC_MaxRefine_LV2,    -1,            NoMin_int,        MAX_LEVEL-1       );
+   LOAD_PARA( load_mode, "CCSN_CC_MaxRefine_LV1",    &CCSN_CC_MaxRefine_LV1,    -1,            NoMin_int,        NoMax_int         );
+   LOAD_PARA( load_mode, "CCSN_CC_MaxRefine_LV2",    &CCSN_CC_MaxRefine_LV2,    -1,            NoMin_int,        NoMax_int         );
    LOAD_PARA( load_mode, "CCSN_CC_MaxRefine_Dens1",  &CCSN_CC_MaxRefine_Dens1,   1.0e11,       0.0,              NoMax_double      );
    LOAD_PARA( load_mode, "CCSN_CC_MaxRefine_Dens2",  &CCSN_CC_MaxRefine_Dens2,   1.0e12,       0.0,              NoMax_double      );
    LOAD_PARA( load_mode, "CCSN_CC_CentralDensFac",   &CCSN_CC_CentralDensFac,    1.0e13,       Eps_double,       NoMax_double      );
@@ -399,6 +399,10 @@ void SetParameter()
                CCSN_CC_MaxRefine_LV1 = MAX_LEVEL-2;
                PRINT_RESET_PARA( CCSN_CC_MaxRefine_LV1, FORMAT_INT, "" );
             }
+
+            if ( CCSN_CC_MaxRefine_LV1 >= MAX_LEVEL )
+               Aux_Error( ERROR_INFO, "%s = %d should be smaller than %s = %d !!\n", "CCSN_CC_MaxRefine_LV1",
+                          CCSN_CC_MaxRefine_LV1, "MAX_LEVEL", MAX_LEVEL );
          }
 
          if ( CCSN_CC_MaxRefine_Flag2 )
@@ -409,6 +413,10 @@ void SetParameter()
                CCSN_CC_MaxRefine_LV2 = MAX_LEVEL-1;
                PRINT_RESET_PARA( CCSN_CC_MaxRefine_LV2, FORMAT_INT, "" );
             }
+
+            if ( CCSN_CC_MaxRefine_LV2 >= MAX_LEVEL )
+               Aux_Error( ERROR_INFO, "%s = %d should be smaller than %s = %d !!\n", "CCSN_CC_MaxRefine_LV2",
+                          CCSN_CC_MaxRefine_LV2, "MAX_LEVEL", MAX_LEVEL );
 
 //          CCSN_CC_MaxRefine_LV1 should be smaller than CCSN_CC_MaxRefine_LV2
             if (  CCSN_CC_MaxRefine_Flag1  &&  ( CCSN_CC_MaxRefine_LV2 <= CCSN_CC_MaxRefine_LV1 )  )
