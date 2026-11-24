@@ -3,22 +3,22 @@
 #if ( MODEL == HYDRO )
 
 
-extern bool   CCSN_CC_MaxRefine_Flag1;
-extern bool   CCSN_CC_MaxRefine_Flag2;
-extern int    CCSN_CC_MaxRefine_LV1;
-extern int    CCSN_CC_MaxRefine_LV2;
-extern double CCSN_CC_MaxRefine_Dens1;
-extern double CCSN_CC_MaxRefine_Dens2;
+extern bool   CCSN_Ref_CC_Flag1;
+extern bool   CCSN_Ref_CC_Flag2;
+extern int    CCSN_Ref_CC_MaxLv1;
+extern int    CCSN_Ref_CC_MaxLv2;
+extern double CCSN_Ref_CC_Dens1;
+extern double CCSN_Ref_CC_Dens2;
 extern double CCSN_PeakDens;
 
 extern bool   CCSN_Is_PostBounce;
-extern double CCSN_REF_RBase;
+extern double CCSN_Ref_BaseRad;
 extern double CCSN_Rsh_Max;
 extern double CCSN_Rsh_Ave;
 
-extern double CCSN_MaxRefine_Rad;
-extern double CCSN_AngRes_Min;
-extern double CCSN_AngRes_Max;
+extern double CCSN_Ref_MaxLv_Rad;
+extern double CCSN_Ref_AngRes_Min;
+extern double CCSN_Ref_AngRes_Max;
 
 
 
@@ -63,25 +63,25 @@ bool Flag_CoreCollapse( const int i, const int j, const int k, const int lv, con
 
 
 // (1) check if the allowed maximum level is reached
-   if      ( CCSN_CC_MaxRefine_Flag1  &&  CentralDens < CCSN_CC_MaxRefine_Dens1 / UNIT_D )
-      MaxRefine = lv >= CCSN_CC_MaxRefine_LV1;
+   if      ( CCSN_Ref_CC_Flag1  &&  CentralDens < CCSN_Ref_CC_Dens1 / UNIT_D )
+      MaxRefine = lv >= CCSN_Ref_CC_MaxLv1;
 
-   else if ( CCSN_CC_MaxRefine_Flag2  &&  CentralDens < CCSN_CC_MaxRefine_Dens2 / UNIT_D )
-      MaxRefine = lv >= CCSN_CC_MaxRefine_LV2;
+   else if ( CCSN_Ref_CC_Flag2  &&  CentralDens < CCSN_Ref_CC_Dens2 / UNIT_D )
+      MaxRefine = lv >= CCSN_Ref_CC_MaxLv2;
 
 
    if ( !MaxRefine ) {
 //    (2) check if the minimum angular resolution is reached
-      if ( CCSN_AngRes_Min > 0.0  &&  R * CCSN_AngRes_Min < dh )
+      if ( CCSN_Ref_AngRes_Min > 0.0  &&  R * CCSN_Ref_AngRes_Min < dh )
          Flag = true;
 
-//    (3) always refine to the highest level in the region within r < CCSN_MaxRefine_Rad
+//    (3) always refine to the highest level in the region within r < CCSN_Ref_MaxLv_Rad
 //    (3-a) always refine the innermost cells
       if ( R < amr->dh[lv] )
          Flag = true;
 
-//    (3-b) refine the region within r < CCSN_MaxRefine_Rad
-      if ( R * UNIT_L < CCSN_MaxRefine_Rad )
+//    (3-b) refine the region within r < CCSN_Ref_MaxLv_Rad
+      if ( R * UNIT_L < CCSN_Ref_MaxLv_Rad )
          Flag = true;
    }
 
@@ -129,17 +129,17 @@ bool Flag_PostBounce( const int i, const int j, const int k, const int lv, const
    const double R = sqrt( SQR(dR[0]) + SQR(dR[1]) + SQR(dR[2]) );
 
 
-// (1) always refine to the highest level in the region within r < CCSN_MaxRefine_Rad
+// (1) always refine to the highest level in the region within r < CCSN_Ref_MaxLv_Rad
 // (1-a) always refine the innermost cells
    if ( R < amr->dh[lv] )
       Flag = true;
 
-// (1-b) refine the region within r < CCSN_MaxRefine_Rad
-   if ( R * UNIT_L < CCSN_MaxRefine_Rad )
+// (1-b) refine the region within r < CCSN_Ref_MaxLv_Rad
+   if ( R * UNIT_L < CCSN_Ref_MaxLv_Rad )
       Flag = true;
 
 // (2) check if the minimum angular resolution is reached
-   if ( CCSN_AngRes_Min > 0.0  &&  R * CCSN_AngRes_Min < dh )
+   if ( CCSN_Ref_AngRes_Min > 0.0  &&  R * CCSN_Ref_AngRes_Min < dh )
       Flag = true;
 
 
@@ -183,21 +183,21 @@ bool Flag_Region_CCSN( const int i, const int j, const int k, const int lv, cons
    const double R      = sqrt( SQR(dR[0]) + SQR(dR[1]) + SQR(dR[2]) );
 
 
-// must check CCSN_MaxRefine_Rad before evaluating other criteria
-   if ( R * UNIT_L <= CCSN_MaxRefine_Rad )
+// must check CCSN_Ref_MaxLv_Rad before evaluating other criteria
+   if ( R * UNIT_L <= CCSN_Ref_MaxLv_Rad )
       return true;
 
 // check the maximum allowed refinement level based on angular resolution
-   if ( CCSN_AngRes_Max > 0.0  &&  2.0 * R * CCSN_AngRes_Max > dh )
+   if ( CCSN_Ref_AngRes_Max > 0.0  &&  2.0 * R * CCSN_Ref_AngRes_Max > dh )
       Within = false;
 
    if ( !Within )   return Within;
 
 
 // check allowed maximum refine level based on distance to the center
-   if ( CCSN_REF_RBase > 0.0 )
+   if ( CCSN_Ref_BaseRad > 0.0 )
    {
-      const double R_base = CCSN_REF_RBase;
+      const double R_base = CCSN_Ref_BaseRad;
             int    ratio  = (int) ( R / R_base );
             int    dlv    = 0;
 

@@ -39,6 +39,13 @@ static int        CCSN_ColIdx_Ye;                  // column index of Ye        
 static int        CCSN_ColIdx_Temp;                // column index of temperature       in the input profile
 static int        CCSN_ColIdx_Omega;               // column index of angular frequency in the input profile
 
+static int        CCSN_Opt_InitEint;               // Mode of obtaining internal energy in SetGridIC()
+                                                   // ( 1=Temp Mode: Eint(dens, temp, [Ye])
+                                                   //   2=Pres Mode: Eint(dens, pres, [Ye]) )
+       bool       CCSN_Is_PostBounce = false;      // boolean that indicates whether core bounce has occurred [0]
+                                                   // (determined from CCSN_BounceTime and automatically updated in restart runs)
+       double     CCSN_BounceTime = -1.0;          // bounce time in code units
+
 #ifdef MHD
 static CCSN_Mag_t CCSN_Mag;                        // target magnetic field profile
 static double     CCSN_Mag_B0;                     // magnetic field strength
@@ -46,44 +53,36 @@ static double     CCSN_Mag_np;                     // dependence of magnetic fie
 static double     CCSN_Mag_R0;                     // characteristic radius of magnetic field
 #endif
 
-static bool       CCSN_GW_OUTPUT;                  // output GW signals (0=off, 1=on)
-static double     CCSN_GW_DT;                      // output GW signals every CCSN_GW_DT interval
+static int        CCSN_Rot;                        // mode for rotational profile (0:off, 1:analytical, 2:table)
+                                                   // --> analytical formula: Omega(r) = Omega_0 * [ R_0^2 / (r^2 + R_0^2) ],
+                                                   //     where r is the spherical radius
+static double     CCSN_Rot_R0;                     // characteristic radius R_0 (in cm) in the analytical formula
+static double     CCSN_Rot_Omega0;                 // central angular frequency Omega_0 in the analytical formula, in rad/s
+static double     CCSN_Rot_Fac;                    // multiplication factor for the tabular rotational profile
 
-static int        CCSN_Eint_Mode;                  // Mode of obtaining internal energy in SetGridIC()
-                                                   // ( 1=Temp Mode: Eint(dens, temp, [Ye])
-                                                   //   2=Pres Mode: Eint(dens, pres, [Ye]) )
+       bool       CCSN_Ref_CC_Flag1;               // flag for enabling maximum refinement level limit 1 in the collapse phase
+       bool       CCSN_Ref_CC_Flag2;               // flag for enabling maximum refinement level limit 2 in the collapse phase
+       int        CCSN_Ref_CC_MaxLv1;              // maximum refinement level when central density is below CCSN_Ref_CC_Dens1
+       int        CCSN_Ref_CC_MaxLv2;              // maximum refinement level when central density is below CCSN_Ref_CC_Dens2
+       double     CCSN_Ref_CC_Dens1;               // central density threshold for refinement level limit 1, in g/cm3
+       double     CCSN_Ref_CC_Dens2;               // central density threshold for refinement level limit 2, in g/cm3
+       double     CCSN_Ref_MaxLv_Rad;              // radius within which maximum refinement is enforced, in cm
+       double     CCSN_Ref_BaseRad;                // characteristic radius for limiting maximum refinement level, in cm
+       double     CCSN_Ref_AngRes_Min;             // minimum angular resolution, in degrees
+       double     CCSN_Ref_AngRes_Max;             // maximum angular resolution, in degrees
 
-       bool       CCSN_CC_MaxRefine_Flag1;         // flag for limiting maximum refinement level 1
-       bool       CCSN_CC_MaxRefine_Flag2;         // flag for limiting maximum refinement level 2
-       int        CCSN_CC_MaxRefine_LV1;           // reduced maximum refinement level 1 to this value
-       int        CCSN_CC_MaxRefine_LV2;           // reduced maximum refinement level 2 to this value
-       double     CCSN_CC_MaxRefine_Dens1;         // central density threshold that reduces the maximum refinement level 1
-       double     CCSN_CC_MaxRefine_Dens2;         // central density threshold that reduces the maximum refinement level 2
-       double     CCSN_MaxRefine_Rad;              // radius in cm within which to refine to the maximum allowed level
-       double     CCSN_CC_CentralDensFac;          // factor that reduces the dt constrained by the central density (in cgs) during the core collapse
-       double     CCSN_CC_Red_DT;                  // reduced time step (in s) when the central density exceeds CCSN_CC_CentralDensFac before bounce
-       double     CCSN_NuHeat_TimeFac;             // factor that scales the dt constrained by the lightbulb/leakage scheme
-       int        CCSN_CC_Rot;                     // mode for rotational profile (0:off, 1:analytical, 2:table)
-                                                   // --> analytical formula: Omega(r)=Omega_0*[R_0^2/(r^2+R_0^2)], where r is the spherical radius
-       double     CCSN_CC_Rot_R0;                  // characteristic radius R_0 (in cm) in the analytical rotational profile
-       double     CCSN_CC_Rot_Omega0;              // central angular frequency Omega_0 (in rad/s) in the analytical rotational profile
-       double     CCSN_CC_Rot_Fac;                 // multiplication factor for the tabular rotational profile
+       double     CCSN_Dt_CC_Thres_Dens;           // central density threshold for reducing the time step in the collapse phase, in g/cm3
+       double     CCSN_Dt_CC_TimeStep;             // reduced time step when the central density exceeds CCSN_Dt_CC_Thres_Dens, in s
+       double     CCSN_Dt_PB_NuHeat_Fac;           // factor that scales the time step constrained by the neutrino scheme
+       int        CCSN_Dt_PB_NuHeat_YeMode;        // dt criterion on Ye for the neutrino scheme (1=Ye-Ye_min/Ye_max, 2=Ye, 3=none) [1]
 
-       double     CCSN_REF_RBase;                  // reference distance for determining a maximum refinement level based on distance from the box center (in cm)
+static bool       CCSN_Output_GW;                  // output GW signals (0=off, 1=on)
+static double     CCSN_Output_GW_Dt;               // output GW signals every CCSN_Output_GW_Dt time interval
+       double     CCSN_Output_PB_Dt;               // output data every CCSN_Output_PB_Dt time interval during the postbounce phase [-1.0]
 
-       bool       CCSN_Is_PostBounce = false;      // boolean that indicates whether core bounce has occurred [0]
-                                                   // (determined from CCSN_BounceTime and automatically updated in restart runs)
-
-       double     CCSN_AngRes_Min;                 // minimum angular resolution in degree
-       double     CCSN_AngRes_Max;                 // maximum angular resolution in degree
        double     CCSN_Shock_ThresFac_Pres;        // pressure threshold factor for detecting postbounce shock
-       double     CCSN_Shock_ThresFac_Vel;         // velocity threshold facotr for detecting postbounce shock
+       double     CCSN_Shock_ThresFac_Vel;         // velocity threshold factor for detecting postbounce shock
        int        CCSN_Shock_Weight;               // weighting of each cell    for detecting postbounce shock (1:volume, 2:1/volume)
-
-       int        CCSN_DT_YE;                      // dt criterion on Ye (1=Ye-Ye_min/Ye_max, 2=Ye, 3=none) [1]
-
-       double     CCSN_BounceTime = -1.0;          // bounce time in code units
-       double     CCSN_PB_Output_Dt = -1.0;        // output data every CCSN_PB_Output_Dt time interval during the postbounce phase [-1.0]
 // =======================================================================================
 
 
@@ -176,38 +175,42 @@ void LoadInputTestProb( const LoadParaMode_t load_mode, ReadPara_t *ReadPara, HD
 // ******************************************************************************************************************************
    LOAD_PARA( load_mode, "CCSN_Prob",                &CCSN_Prob,                -1,            Migration_Test,   CCSN              );
    LOAD_PARA( load_mode, "CCSN_Prof_File",            CCSN_Prof_File,            Useless_str,  Useless_str,      Useless_str       );
+   LOAD_PARA( load_mode, "CCSN_Is_PostBounce",       &CCSN_Is_PostBounce,        false,        Useless_bool,     Useless_bool      );
+   LOAD_PARA( load_mode, "CCSN_Opt_InitEint",        &CCSN_Opt_InitEint,         1,            1,                2                 );
 #  ifdef MHD
-   LOAD_PARA( load_mode, "CCSN_Mag",                 &CCSN_Mag,                  1,            0,                1                 );
-   LOAD_PARA( load_mode, "CCSN_Mag_B0",              &CCSN_Mag_B0,               1.0e14,       0.0,              NoMax_double      );
+   LOAD_PARA( load_mode, "CCSN_Mag",                 &CCSN_Mag,                  1,            0,                2                 );
+   LOAD_PARA( load_mode, "CCSN_Mag_B0",              &CCSN_Mag_B0,               1.0e10,       0.0,              NoMax_double      );
    LOAD_PARA( load_mode, "CCSN_Mag_np",              &CCSN_Mag_np,               0.0,          NoMin_double,     NoMax_double      );
    LOAD_PARA( load_mode, "CCSN_Mag_R0",              &CCSN_Mag_R0,               1.0e8,        Eps_double,       NoMax_double      );
 #  endif
-   LOAD_PARA( load_mode, "CCSN_GW_OUTPUT",           &CCSN_GW_OUTPUT,            false,        Useless_bool,     Useless_bool      );
-   LOAD_PARA( load_mode, "CCSN_GW_DT",               &CCSN_GW_DT,                1.0,          Eps_double,       NoMax_double      );
-   LOAD_PARA( load_mode, "CCSN_Eint_Mode",           &CCSN_Eint_Mode,            2,            1,                2                 );
-   LOAD_PARA( load_mode, "CCSN_CC_MaxRefine_Flag1",  &CCSN_CC_MaxRefine_Flag1,   false,        Useless_bool,     Useless_bool      );
-   LOAD_PARA( load_mode, "CCSN_CC_MaxRefine_Flag2",  &CCSN_CC_MaxRefine_Flag2,   false,        Useless_bool,     Useless_bool      );
-   LOAD_PARA( load_mode, "CCSN_CC_MaxRefine_LV1",    &CCSN_CC_MaxRefine_LV1,    -1,            NoMin_int,        NoMax_int         );
-   LOAD_PARA( load_mode, "CCSN_CC_MaxRefine_LV2",    &CCSN_CC_MaxRefine_LV2,    -1,            NoMin_int,        NoMax_int         );
-   LOAD_PARA( load_mode, "CCSN_CC_MaxRefine_Dens1",  &CCSN_CC_MaxRefine_Dens1,   1.0e11,       0.0,              NoMax_double      );
-   LOAD_PARA( load_mode, "CCSN_CC_MaxRefine_Dens2",  &CCSN_CC_MaxRefine_Dens2,   1.0e12,       0.0,              NoMax_double      );
-   LOAD_PARA( load_mode, "CCSN_CC_CentralDensFac",   &CCSN_CC_CentralDensFac,    1.0e13,       Eps_double,       NoMax_double      );
-   LOAD_PARA( load_mode, "CCSN_CC_Red_DT",           &CCSN_CC_Red_DT,            1.0e-5,       Eps_double,       NoMax_double      );
-   LOAD_PARA( load_mode, "CCSN_NuHeat_TimeFac",      &CCSN_NuHeat_TimeFac,       0.1,          Eps_double,       1.0               );
-   LOAD_PARA( load_mode, "CCSN_CC_Rot",              &CCSN_CC_Rot,               2,            0,                2                 );
-   LOAD_PARA( load_mode, "CCSN_CC_Rot_R0",           &CCSN_CC_Rot_R0,            2.0e8,        Eps_double,       NoMax_double      );
-   LOAD_PARA( load_mode, "CCSN_CC_Rot_Omega0",       &CCSN_CC_Rot_Omega0,        0.5,          0.0,              NoMax_double      );
-   LOAD_PARA( load_mode, "CCSN_CC_Rot_Fac",          &CCSN_CC_Rot_Fac,          -1.0,          NoMin_double,     NoMax_double      );
-   LOAD_PARA( load_mode, "CCSN_REF_RBase",           &CCSN_REF_RBase,            1.25e7,       NoMin_double,     NoMax_double      );
-   LOAD_PARA( load_mode, "CCSN_Is_PostBounce",       &CCSN_Is_PostBounce,        false,        Useless_bool,     Useless_bool      );
-   LOAD_PARA( load_mode, "CCSN_MaxRefine_Rad",       &CCSN_MaxRefine_Rad,        3.0e6,        Eps_double,       NoMax_double      );
-   LOAD_PARA( load_mode, "CCSN_AngRes_Min",          &CCSN_AngRes_Min,          -1.0,          NoMin_double,     NoMax_double      );
-   LOAD_PARA( load_mode, "CCSN_AngRes_Max",          &CCSN_AngRes_Max,          -1.0,          NoMin_double,     NoMax_double      );
+   LOAD_PARA( load_mode, "CCSN_Rot",                 &CCSN_Rot,                  0,            0,                2                 );
+   LOAD_PARA( load_mode, "CCSN_Rot_R0",              &CCSN_Rot_R0,               2.0e8,        Eps_double,       NoMax_double      );
+   LOAD_PARA( load_mode, "CCSN_Rot_Omega0",          &CCSN_Rot_Omega0,           0.5,          0.0,              NoMax_double      );
+   LOAD_PARA( load_mode, "CCSN_Rot_Fac",             &CCSN_Rot_Fac,             -1.0,          NoMin_double,     NoMax_double      );
+
+   LOAD_PARA( load_mode, "CCSN_Ref_CC_Flag1",        &CCSN_Ref_CC_Flag1,         false,        Useless_bool,     Useless_bool      );
+   LOAD_PARA( load_mode, "CCSN_Ref_CC_Flag2",        &CCSN_Ref_CC_Flag2,         false,        Useless_bool,     Useless_bool      );
+   LOAD_PARA( load_mode, "CCSN_Ref_CC_MaxLv1",       &CCSN_Ref_CC_MaxLv1,       -1,            NoMin_int,        NoMax_int         );
+   LOAD_PARA( load_mode, "CCSN_Ref_CC_MaxLv2",       &CCSN_Ref_CC_MaxLv2,       -1,            NoMin_int,        NoMax_int         );
+   LOAD_PARA( load_mode, "CCSN_Ref_CC_Dens1",        &CCSN_Ref_CC_Dens1,         1.0e11,       0.0,              NoMax_double      );
+   LOAD_PARA( load_mode, "CCSN_Ref_CC_Dens2",        &CCSN_Ref_CC_Dens2,         1.0e12,       0.0,              NoMax_double      );
+   LOAD_PARA( load_mode, "CCSN_Ref_MaxLv_Rad",       &CCSN_Ref_MaxLv_Rad,        3.0e6,        Eps_double,       NoMax_double      );
+   LOAD_PARA( load_mode, "CCSN_Ref_BaseRad",         &CCSN_Ref_BaseRad,         -1.0,          NoMin_double,     NoMax_double      );
+   LOAD_PARA( load_mode, "CCSN_Ref_AngRes_Min",      &CCSN_Ref_AngRes_Min,      -1.0,          NoMin_double,     NoMax_double      );
+   LOAD_PARA( load_mode, "CCSN_Ref_AngRes_Max",      &CCSN_Ref_AngRes_Max,      -1.0,          NoMin_double,     NoMax_double      );
+
+   LOAD_PARA( load_mode, "CCSN_Dt_CC_Thres_Dens",    &CCSN_Dt_CC_Thres_Dens,     1.0e13,       Eps_double,       NoMax_double      );
+   LOAD_PARA( load_mode, "CCSN_Dt_CC_TimeStep",      &CCSN_Dt_CC_TimeStep,       1.0e-5,       Eps_double,       NoMax_double      );
+   LOAD_PARA( load_mode, "CCSN_Dt_PB_NuHeat_Fac",    &CCSN_Dt_PB_NuHeat_Fac,     0.01,         Eps_double,       1.0               );
+   LOAD_PARA( load_mode, "CCSN_Dt_PB_NuHeat_YeMode", &CCSN_Dt_PB_NuHeat_YeMode,  1,            1,                3                 );
+
+   LOAD_PARA( load_mode, "CCSN_Output_GW",           &CCSN_Output_GW,            false,        Useless_bool,     Useless_bool      );
+   LOAD_PARA( load_mode, "CCSN_Output_GW_Dt",        &CCSN_Output_GW_Dt,         1.0,          Eps_double,       NoMax_double      );
+   LOAD_PARA( load_mode, "CCSN_Output_PB_Dt",        &CCSN_Output_PB_Dt,        -1.0,          NoMin_double,     NoMax_double      );
+
    LOAD_PARA( load_mode, "CCSN_Shock_ThresFac_Pres", &CCSN_Shock_ThresFac_Pres,  0.5,          Eps_double,       NoMax_double      );
    LOAD_PARA( load_mode, "CCSN_Shock_ThresFac_Vel",  &CCSN_Shock_ThresFac_Vel,   0.1,          Eps_double,       NoMax_double      );
    LOAD_PARA( load_mode, "CCSN_Shock_Weight",        &CCSN_Shock_Weight,         2,            1,                2                 );
-   LOAD_PARA( load_mode, "CCSN_DT_YE",               &CCSN_DT_YE,                1,            1,                3                 );
-   LOAD_PARA( load_mode, "CCSN_PB_Output_Dt",        &CCSN_PB_Output_Dt,        -1.0,          NoMin_double,     NoMax_double      );
 
 } // FUNCITON : LoadInputTestProb
 
@@ -366,7 +369,7 @@ void SetParameter()
    }
 
 #  if ( EOS != EOS_NUCLEAR )
-   if ( CCSN_Eint_Mode == 1 )
+   if ( CCSN_Opt_InitEint == 1 )
       Aux_Error( ERROR_INFO, "Temperature mode for initializing grids only works with EOS_NUCLEAR !!\n" );
 #  endif
 
@@ -376,8 +379,11 @@ void SetParameter()
       if ( OPT__FLAG_REGION )
          Aux_Error( ERROR_INFO, "%s is not supported for %s = %s !!\n", "OPT__FLAG_REGION", "CCSN_Prob", Migration_Test );
 
-      if ( CCSN_Eint_Mode == 1 )
+      if ( CCSN_Opt_InitEint == 1 )
          Aux_Error( ERROR_INFO, "Temperature mode for initializing grids is not supported in Migration Test yet !!\n" );
+
+      if ( CCSN_Rot == 2 )
+         Aux_Error( ERROR_INFO, "unsupported CCSN_Rot (%d) for Migration Test !!\n", CCSN_Rot );
    }
 
 // (1-3-3) checks and setting for the CCSN problems
@@ -386,52 +392,52 @@ void SetParameter()
 //    collapse phase
       if ( ! CCSN_Is_PostBounce )
       {
-//       CCSN_CC_Red_DT should be smaller than DT__MAX * UNIT_T
-         if ( CCSN_CC_Red_DT > DT__MAX * UNIT_T )
-            Aux_Error( ERROR_INFO, "%s = %13.7e should be smaller than %s = %13.7e !!\n", "CCSN_CC_Red_DT",
-                       CCSN_CC_Red_DT, "DT__MAX * UNIT_T", DT__MAX * UNIT_T );
+//       CCSN_Dt_CC_TimeStep should be smaller than DT__MAX * UNIT_T
+         if ( CCSN_Dt_CC_TimeStep > DT__MAX * UNIT_T )
+            Aux_Error( ERROR_INFO, "%s = %13.7e should be smaller than %s = %13.7e !!\n", "CCSN_Dt_CC_TimeStep",
+                       CCSN_Dt_CC_TimeStep, "DT__MAX * UNIT_T", DT__MAX * UNIT_T );
 
-         if ( CCSN_CC_MaxRefine_Flag1 )
+         if ( CCSN_Ref_CC_Flag1 )
          {
-//          set CCSN_CC_MaxRefine_LV1 to default value
-            if ( CCSN_CC_MaxRefine_LV1 < 0 )
+//          set CCSN_Ref_CC_MaxLv1 to default value
+            if ( CCSN_Ref_CC_MaxLv1 < 0 )
             {
-               CCSN_CC_MaxRefine_LV1 = MAX_LEVEL-2;
-               PRINT_RESET_PARA( CCSN_CC_MaxRefine_LV1, FORMAT_INT, "" );
+               CCSN_Ref_CC_MaxLv1 = MAX_LEVEL-2;
+               PRINT_RESET_PARA( CCSN_Ref_CC_MaxLv1, FORMAT_INT, "" );
             }
 
-            if ( CCSN_CC_MaxRefine_LV1 >= MAX_LEVEL )
-               Aux_Error( ERROR_INFO, "%s = %d should be smaller than %s = %d !!\n", "CCSN_CC_MaxRefine_LV1",
-                          CCSN_CC_MaxRefine_LV1, "MAX_LEVEL", MAX_LEVEL );
+            if ( CCSN_Ref_CC_MaxLv1 >= MAX_LEVEL )
+               Aux_Error( ERROR_INFO, "%s = %d should be smaller than %s = %d !!\n", "CCSN_Ref_CC_MaxLv1",
+                          CCSN_Ref_CC_MaxLv1, "MAX_LEVEL", MAX_LEVEL );
          }
 
-         if ( CCSN_CC_MaxRefine_Flag2 )
+         if ( CCSN_Ref_CC_Flag2 )
          {
-//          set CCSN_CC_MaxRefine_LV2 to default value
-            if ( CCSN_CC_MaxRefine_LV2 < 0 )
+//          set CCSN_Ref_CC_MaxLv2 to default value
+            if ( CCSN_Ref_CC_MaxLv2 < 0 )
             {
-               CCSN_CC_MaxRefine_LV2 = MAX_LEVEL-1;
-               PRINT_RESET_PARA( CCSN_CC_MaxRefine_LV2, FORMAT_INT, "" );
+               CCSN_Ref_CC_MaxLv2 = MAX_LEVEL-1;
+               PRINT_RESET_PARA( CCSN_Ref_CC_MaxLv2, FORMAT_INT, "" );
             }
 
-            if ( CCSN_CC_MaxRefine_LV2 >= MAX_LEVEL )
-               Aux_Error( ERROR_INFO, "%s = %d should be smaller than %s = %d !!\n", "CCSN_CC_MaxRefine_LV2",
-                          CCSN_CC_MaxRefine_LV2, "MAX_LEVEL", MAX_LEVEL );
+            if ( CCSN_Ref_CC_MaxLv2 >= MAX_LEVEL )
+               Aux_Error( ERROR_INFO, "%s = %d should be smaller than %s = %d !!\n", "CCSN_Ref_CC_MaxLv2",
+                          CCSN_Ref_CC_MaxLv2, "MAX_LEVEL", MAX_LEVEL );
 
-//          CCSN_CC_MaxRefine_LV1 should be smaller than CCSN_CC_MaxRefine_LV2
-            if (  CCSN_CC_MaxRefine_Flag1  &&  ( CCSN_CC_MaxRefine_LV2 <= CCSN_CC_MaxRefine_LV1 )  )
-               Aux_Error( ERROR_INFO, "%s = %d should be smaller than %s = %d !!\n", "CCSN_CC_MaxRefine_LV1",
-                          CCSN_CC_MaxRefine_LV1, "CCSN_CC_MaxRefine_LV2", CCSN_CC_MaxRefine_LV2   );
+//          CCSN_Ref_CC_MaxLv1 should be smaller than CCSN_Ref_CC_MaxLv2
+            if (  CCSN_Ref_CC_Flag1  &&  ( CCSN_Ref_CC_MaxLv2 <= CCSN_Ref_CC_MaxLv1 )  )
+               Aux_Error( ERROR_INFO, "%s = %d should be smaller than %s = %d !!\n", "CCSN_Ref_CC_MaxLv1",
+                          CCSN_Ref_CC_MaxLv1, "CCSN_Ref_CC_MaxLv2", CCSN_Ref_CC_MaxLv2   );
 
-//          CCSN_CC_MaxRefine_Dens2 should be larger than CCSN_CC_MaxRefine_Dens1
-            if (  CCSN_CC_MaxRefine_Flag1  &&  ( CCSN_CC_MaxRefine_Dens2 <= CCSN_CC_MaxRefine_Dens1 )  )
-               Aux_Error( ERROR_INFO, "%s = %13.7e should be larger than $s = %13.7e !!\n", "CCSN_CC_MaxRefine_Dens2",
-                          CCSN_CC_MaxRefine_Dens2, "CCSN_CC_MaxRefine_Dens1", CCSN_CC_MaxRefine_Dens1 );
+//          CCSN_Ref_CC_Dens2 should be larger than CCSN_Ref_CC_Dens1
+            if (  CCSN_Ref_CC_Flag1  &&  ( CCSN_Ref_CC_Dens2 <= CCSN_Ref_CC_Dens1 )  )
+               Aux_Error( ERROR_INFO, "%s = %13.7e should be larger than $s = %13.7e !!\n", "CCSN_Ref_CC_Dens2",
+                          CCSN_Ref_CC_Dens2, "CCSN_Ref_CC_Dens1", CCSN_Ref_CC_Dens1 );
          }
 
-//       do not mix formulated-rotation and CCSN_CC_Rot_Fac
-         if ( CCSN_CC_Rot == 1  &&  CCSN_CC_Rot_Fac > 0.0 )
-            Aux_Error( ERROR_INFO, "%s = %d and %s shouldn't be mixed\n", "CCSN_CC_Rot", CCSN_CC_Rot, "CCSN_CC_Rot_Fac" );
+//       do not mix formulated-rotation and CCSN_Rot_Fac
+         if ( CCSN_Rot == 1  &&  CCSN_Rot_Fac > 0.0 )
+            Aux_Error( ERROR_INFO, "%s = %d and %s shouldn't be mixed\n", "CCSN_Rot", CCSN_Rot, "CCSN_Rot_Fac" );
 
          if ( ! SrcTerms.Deleptonization )
             Aux_Error( ERROR_INFO, "SRC_DELEPTONIZATION must be enabled in the collapse phase !!\n" );
@@ -450,10 +456,10 @@ void SetParameter()
 //    postbounce phase
       else
       {
-//       update OUTPUT_DT according to CCSN_PB_Output_Dt
-         if ( CCSN_PB_Output_Dt > 0.0 )
+//       update OUTPUT_DT according to CCSN_Output_PB_Dt
+         if ( CCSN_Output_PB_Dt > 0.0 )
          {
-            OUTPUT_DT = CCSN_PB_Output_Dt;
+            OUTPUT_DT = CCSN_Output_PB_Dt;
             PRINT_RESET_PARA( OUTPUT_DT, FORMAT_REAL, "" );
          }
 
@@ -472,30 +478,30 @@ void SetParameter()
       } // if ( ! CCSN_Is_PostBounce ) ... else ...
    } // if ( CCSN_Prob == CCSN )
 
-// (1-3-4) check OPT__FLAG_REGION is enabled for CCSN_AngRes_Max and convert degree to radian
+// (1-3-4) check OPT__FLAG_REGION is enabled for CCSN_Ref_AngRes_Max and convert degree to radian
    const double Deg2Rad = M_PI/180.0;
 
-   if ( CCSN_AngRes_Max > 0.0 ) {
-      CCSN_AngRes_Max *= Deg2Rad;
-      PRINT_RESET_PARA( CCSN_AngRes_Max, FORMAT_REAL, "" );
+   if ( CCSN_Ref_AngRes_Max > 0.0 ) {
+      CCSN_Ref_AngRes_Max *= Deg2Rad;
+      PRINT_RESET_PARA( CCSN_Ref_AngRes_Max, FORMAT_REAL, "" );
 
       if ( !OPT__FLAG_REGION )
-         Aux_Error( ERROR_INFO, "%s is disabled for %s = %13.7e !!\n", "OPT__FLAG_REGION", "CCSN_AngRes_Max", CCSN_AngRes_Max );
+         Aux_Error( ERROR_INFO, "%s is disabled for %s = %13.7e !!\n", "OPT__FLAG_REGION", "CCSN_Ref_AngRes_Max", CCSN_Ref_AngRes_Max );
    }
 
-   if ( CCSN_AngRes_Min > 0.0 ) {
-      CCSN_AngRes_Min *= Deg2Rad;
-      PRINT_RESET_PARA( CCSN_AngRes_Min, FORMAT_REAL, "" );
+   if ( CCSN_Ref_AngRes_Min > 0.0 ) {
+      CCSN_Ref_AngRes_Min *= Deg2Rad;
+      PRINT_RESET_PARA( CCSN_Ref_AngRes_Min, FORMAT_REAL, "" );
    }
 
-   if ( CCSN_AngRes_Min > 0.0  &&  CCSN_AngRes_Max > 0.0  &&
-        CCSN_AngRes_Min < 2.0 * CCSN_AngRes_Max )
-      Aux_Error( ERROR_INFO, "CCSN_AngRes_Min (%13.7e) must be larger than 2.0 * CCSN_AngRes_Max (%13.7e) !!\n", CCSN_AngRes_Min, CCSN_AngRes_Max );
+   if ( CCSN_Ref_AngRes_Min > 0.0  &&  CCSN_Ref_AngRes_Max > 0.0  &&
+        CCSN_Ref_AngRes_Min < 2.0 * CCSN_Ref_AngRes_Max )
+      Aux_Error( ERROR_INFO, "CCSN_Ref_AngRes_Min (%13.7e) must be larger than 2.0 * CCSN_Ref_AngRes_Max (%13.7e) !!\n", CCSN_Ref_AngRes_Min, CCSN_Ref_AngRes_Max );
 
 
 // (2) set the problem-specific derived parameters
 // convert runtime parameters to the code unit
-   CCSN_REF_RBase /= UNIT_L;
+   CCSN_Ref_BaseRad /= UNIT_L;
 
 
 // (3) reset other general-purpose parameters
@@ -527,42 +533,42 @@ void SetParameter()
       Aux_Message( stdout, "  dependence of magnetic field on density                            = %13.7e\n", CCSN_Mag_np              );
       Aux_Message( stdout, "  characteristic radius of magnetic field                            = %13.7e\n", CCSN_Mag_R0              );
 #     endif
-      Aux_Message( stdout, "  output GW signals                                                  = %d\n",     CCSN_GW_OUTPUT           );
-      Aux_Message( stdout, "  sampling interval of GW signals                                    = %13.7e\n", CCSN_GW_DT               );
-      Aux_Message( stdout, "  mode for obtaining internal energy                                 = %d\n",     CCSN_Eint_Mode           );
+      Aux_Message( stdout, "  output GW signals                                                  = %d\n",     CCSN_Output_GW           );
+      Aux_Message( stdout, "  sampling interval of GW signals                                    = %13.7e\n", CCSN_Output_GW_Dt        );
+      Aux_Message( stdout, "  mode for obtaining internal energy                                 = %d\n",     CCSN_Opt_InitEint        );
 
       if ( CCSN_Prob == CCSN )
       {
       if ( !CCSN_Is_PostBounce ) {
-      if ( CCSN_CC_MaxRefine_Flag1 ) {
-      Aux_Message( stdout, "  reduced maxmimum refinement lv 1                                   = %d\n",     CCSN_CC_MaxRefine_LV1    );
-      Aux_Message( stdout, "  central density threshold for CCSN_CC_MaxRefine_LV1                = %13.7e\n", CCSN_CC_MaxRefine_Dens1  ); }
-      if ( CCSN_CC_MaxRefine_Flag2 ) {
-      Aux_Message( stdout, "  reduced maxmimum refinement lv 2                                   = %d\n",     CCSN_CC_MaxRefine_LV2    );
-      Aux_Message( stdout, "  central density threshold for CCSN_CC_MaxRefine_LV2                = %13.7e\n", CCSN_CC_MaxRefine_Dens2  ); }
-      Aux_Message( stdout, "  central density factor for reducing dt                             = %13.7e\n", CCSN_CC_CentralDensFac   );
-      Aux_Message( stdout, "  reduced dt near bounce                                             = %13.7e\n", CCSN_CC_Red_DT           ); }
+      if ( CCSN_Ref_CC_Flag1 ) {
+      Aux_Message( stdout, "  reduced maxmimum refinement lv 1                                   = %d\n",     CCSN_Ref_CC_MaxLv1       );
+      Aux_Message( stdout, "  central density threshold for CCSN_Ref_CC_MaxLv1                   = %13.7e\n", CCSN_Ref_CC_Dens1        ); }
+      if ( CCSN_Ref_CC_Flag2 ) {
+      Aux_Message( stdout, "  reduced maxmimum refinement lv 2                                   = %d\n",     CCSN_Ref_CC_MaxLv2       );
+      Aux_Message( stdout, "  central density threshold for CCSN_Ref_CC_MaxLv2                   = %13.7e\n", CCSN_Ref_CC_Dens2        ); }
+      Aux_Message( stdout, "  central density factor for reducing dt                             = %13.7e\n", CCSN_Dt_CC_Thres_Dens    );
+      Aux_Message( stdout, "  reduced dt near bounce                                             = %13.7e\n", CCSN_Dt_CC_TimeStep      ); }
 
-      Aux_Message( stdout, "  scaling factor for lightbulb/leakage dt                            = %13.7e\n", CCSN_NuHeat_TimeFac      );
+      Aux_Message( stdout, "  scaling factor for lightbulb/leakage dt                            = %13.7e\n", CCSN_Dt_PB_NuHeat_Fac    );
       Aux_Message( stdout, "  whether core bounce has occurred                                   = %d\n",     CCSN_Is_PostBounce       );
       Aux_Message( stdout, "  pressure threshold factor for detecting shock                      = %13.7e\n", CCSN_Shock_ThresFac_Pres );
       Aux_Message( stdout, "  velocity threshold factor for detecting shock                      = %13.7e\n", CCSN_Shock_ThresFac_Vel  );
       Aux_Message( stdout, "  weighting of each cell    for detecting shock                      = %d\n",     CCSN_Shock_Weight        );
       }
 
-      Aux_Message( stdout, "  mode for rotational profile                                        = %d\n",     CCSN_CC_Rot              );
-      if ( CCSN_CC_Rot == 1 ) {
-      Aux_Message( stdout, "  characteristic rotational radius R_0 (in cm)                       = %13.7e\n", CCSN_CC_Rot_R0           );
-      Aux_Message( stdout, "  central angular frequency Omega_0 (in rad/s)                       = %13.7e\n", CCSN_CC_Rot_Omega0       ); }
-      if ( CCSN_CC_Rot == 2 )
-      Aux_Message( stdout, "  multiplication factor for rotational profile                       = %13.7e\n", CCSN_CC_Rot_Fac          );
+      Aux_Message( stdout, "  mode for rotational profile                                        = %d\n",     CCSN_Rot                 );
+      if ( CCSN_Rot == 1 ) {
+      Aux_Message( stdout, "  characteristic rotational radius R_0 (in cm)                       = %13.7e\n", CCSN_Rot_R0              );
+      Aux_Message( stdout, "  central angular frequency Omega_0 (in rad/s)                       = %13.7e\n", CCSN_Rot_Omega0          ); }
+      if ( CCSN_Rot == 2 )
+      Aux_Message( stdout, "  multiplication factor for rotational profile                       = %13.7e\n", CCSN_Rot_Fac             );
 
-      Aux_Message( stdout, "  radius within which to refine to the maximum allowed level (in cm) = %13.7e\n", CCSN_MaxRefine_Rad       );
-      Aux_Message( stdout, "  minimum angular resolution (in degrees)                            = %13.7e\n", CCSN_AngRes_Min/Deg2Rad  );
-      Aux_Message( stdout, "  maximum angular resolution (in degrees)                            = %13.7e\n", CCSN_AngRes_Max/Deg2Rad  );
-      Aux_Message( stdout, "  reference distance for the maximum refinement level                = %13.7e\n", CCSN_REF_RBase           );
-      Aux_Message( stdout, "  dt criterion on Ye                                                 = %d\n",     CCSN_DT_YE               );
-      Aux_Message( stdout, "  output interval during the postbounce phase                        = %13.7e\n", CCSN_PB_Output_Dt        );
+      Aux_Message( stdout, "  radius within which to refine to the maximum allowed level (in cm) = %13.7e\n", CCSN_Ref_MaxLv_Rad           );
+      Aux_Message( stdout, "  minimum angular resolution (in degrees)                            = %13.7e\n", CCSN_Ref_AngRes_Min/Deg2Rad  );
+      Aux_Message( stdout, "  maximum angular resolution (in degrees)                            = %13.7e\n", CCSN_Ref_AngRes_Max/Deg2Rad  );
+      Aux_Message( stdout, "  reference distance for the maximum refinement level                = %13.7e\n", CCSN_Ref_BaseRad         );
+      Aux_Message( stdout, "  dt criterion on Ye                                                 = %d\n",     CCSN_Dt_PB_NuHeat_YeMode );
+      Aux_Message( stdout, "  output interval during the postbounce phase                        = %13.7e\n", CCSN_Output_PB_Dt        );
       Aux_Message( stdout, "=======================================================================================\n"  );
    }
 
@@ -639,8 +645,8 @@ void SetGridIC( real fluid[], const double x, const double y, const double z, co
    Momy = Dens*Velr*y0/r;
    Momz = Dens*Velr*z0/r;
 
-// add angular momentum in a core collapse test, if any
-   if ( CCSN_CC_Rot  &&  CCSN_Prob == CCSN )
+// add angular momentum, if any
+   if ( CCSN_Rot )
    {
       const double r_xy    = sqrt( SQR(x0) + SQR(y0) );
       const double Cos_phi = x0/r_xy;
@@ -648,22 +654,22 @@ void SetGridIC( real fluid[], const double x, const double y, const double z, co
             double Omega_r, Vel_phi;
 
 //    rotational profile from the formula ( Omega(r)=Omega_0*[R_0^2/(r^2+R_0^2)], r: spherical radius )
-      if ( CCSN_CC_Rot == 1 )
+      if ( CCSN_Rot == 1 )
       {
-         const double R_0     = CCSN_CC_Rot_R0 / UNIT_L;
-         const double Omega_0 = CCSN_CC_Rot_Omega0 * UNIT_T;
+         const double R_0     = CCSN_Rot_R0 / UNIT_L;
+         const double Omega_0 = CCSN_Rot_Omega0 * UNIT_T;
                       Omega_r = Omega_0 * SQR(R_0) / ( SQR(r) + SQR(R_0) );
       }
 
 //    rotational profile from the table
-      else if ( CCSN_CC_Rot == 2 )
+      else if ( CCSN_Rot == 2 )
       {
          Omega_r  = Mis_InterpolateFromTable( CCSN_Prof_NBin, Table_R, CCSN_Prof+CCSN_ColIdx_Omega*CCSN_Prof_NBin, r );
          Omega_r *= UNIT_T;
 
 //       check whether we are going to artificially increase or decrease the rotation
-         if ( CCSN_CC_Rot_Fac > 0.0 )
-            Omega_r *= CCSN_CC_Rot_Fac;
+         if ( CCSN_Rot_Fac > 0.0 )
+            Omega_r *= CCSN_Rot_Fac;
       }
 
       Vel_phi  = r_xy * Omega_r;
@@ -689,7 +695,7 @@ void SetGridIC( real fluid[], const double x, const double y, const double z, co
    real *Passive = NULL;
 #  endif // #if ( EOS == EOS_NUCLEAR ) ... else ...
 
-   if ( CCSN_Eint_Mode == 1 )   // Temperature Mode
+   if ( CCSN_Opt_InitEint == 1 )  // Temperature Mode
    {
 #     if ( NUC_TABLE_MODE == NUC_TABLE_MODE_TEMP )
       const int  NTarget = 1;
@@ -715,7 +721,7 @@ void SetGridIC( real fluid[], const double x, const double y, const double z, co
       Eint = TmpOut[0];
    }
 
-   else                         // Pressure Mode
+   else  // Pressure Mode
    {
       Eint = EoS_DensPres2Eint_CPUPtr( Dens, Pres, Passive, EoS_AuxArray_Flt, EoS_AuxArray_Int, h_EoS_Table );
    }
@@ -1186,10 +1192,10 @@ void Record_CCSN()
 //          record bounce time
             CCSN_BounceTime = Time[0];
 
-//          update OUTPUT_DT according to CCSN_PB_Output_Dt
-            if ( CCSN_PB_Output_Dt > 0.0 )
+//          update OUTPUT_DT according to CCSN_Output_PB_Dt
+            if ( CCSN_Output_PB_Dt > 0.0 )
             {
-               OUTPUT_DT = CCSN_PB_Output_Dt;
+               OUTPUT_DT = CCSN_Output_PB_Dt;
                PRINT_RESET_PARA( OUTPUT_DT, FORMAT_REAL, "" );
 
 //             update the next dump time in case the current step has already been dumped
@@ -1214,7 +1220,7 @@ void Record_CCSN()
 
 // (4) GW signal
 #  ifdef GRAVITY
-   if ( CCSN_GW_OUTPUT )
+   if ( CCSN_Output_GW )
    {
       static real DumpTime_CCSN = NULL_REAL;
 
@@ -1226,23 +1232,23 @@ void Record_CCSN()
 
          else
          {
-            DumpTime_CCSN = (  int( Time[0] / CCSN_GW_DT ) + 1.0  ) * CCSN_GW_DT;
+            DumpTime_CCSN = (  int( Time[0] / CCSN_Output_GW_Dt ) + 1.0  ) * CCSN_Output_GW_Dt;
 
 //          be careful about round-off errors
             if (   (  DumpTime_CCSN <= Time[0]  )                                         ||
-                   (  Time[0] != 0.0 && fabs( (Time[0]-CCSN_GW_DT)/Time[0] ) < 1.0e-8  )  ||
-                   (  Time[0] == 0.0 && fabs(  Time[0]-CCSN_GW_DT          ) < 1.0e-12 )      )
-               DumpTime_CCSN += CCSN_GW_DT;
+                   (  Time[0] != 0.0 && fabs( (Time[0]-CCSN_Output_GW_Dt)/Time[0] ) < 1.0e-8  )  ||
+                   (  Time[0] == 0.0 && fabs(  Time[0]-CCSN_Output_GW_Dt          ) < 1.0e-12 )      )
+               DumpTime_CCSN += CCSN_Output_GW_Dt;
          }
       }
 
-//    output data if the elasped time > CCSN_GW_DT
+//    output data if the elasped time > CCSN_Output_GW_Dt
       if ( Time[0] > DumpTime_CCSN )
       {
-         Record_CCSN_GWSignal();
-         DumpTime_CCSN += CCSN_GW_DT;
+         Record_CCSN_Output_GWSignal();
+         DumpTime_CCSN += CCSN_Output_GW_Dt;
       }
-   } // if ( CCSN_GW_OUTPUT )
+   } // if ( CCSN_Output_GW )
 #  endif
 
 } // FUNCTION : Record_CCSN()

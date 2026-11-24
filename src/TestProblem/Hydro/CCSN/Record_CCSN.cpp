@@ -737,15 +737,6 @@ void Detect_Shock()
       const int    NTotal    = amr->NPatchComma[lv][1] / 8;
             int   *PID0_List = new int [NTotal];
 
-//    obsolete!! to be removed in the future.
-      double Weight;
-      switch ( CCSN_Shock_Weight )
-      {
-         case 1  : Weight = dv;        break;
-         case 2  : Weight = 1.0/dv;    break;
-         default : Aux_Error( ERROR_INFO, "unsupported CCSN_Shock_Weight (%d) !!\n", CCSN_Shock_Weight );
-      }
-
       for (int t=0; t<NTotal; t++)  PID0_List[t] = 8*t;
 
       for (int Disp=0; Disp<NTotal; Disp+=NPG_Max)

@@ -4,11 +4,11 @@
 #if ( MODEL == HYDRO )
 
 
-extern double CCSN_NuHeat_TimeFac;
-extern double CCSN_CC_CentralDensFac;
-extern double CCSN_CC_Red_DT;
+extern double CCSN_Dt_PB_NuHeat_Fac;
+extern double CCSN_Dt_CC_Thres_Dens;
+extern double CCSN_Dt_CC_TimeStep;
 extern double CCSN_PeakDens;
-extern int    CCSN_DT_YE;
+extern int    CCSN_Dt_PB_NuHeat_YeMode;
 
 
 
@@ -112,7 +112,7 @@ double Mis_GetTimeStep_PostBounce( const int lv, const double dTime_dt )
             const real dYedt = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[DYEDT_NU][k][j][i];
                   real dYe;
 
-            switch ( CCSN_DT_YE )
+            switch ( CCSN_Dt_PB_NuHeat_YeMode )
             {
                case 1 : dYe  = ( dYedt > 0.0 ) ? ( YeMax - Ye ) : ( YeMin - Ye );   break;
                case 2 : dYe  = Ye;                                                  break;
@@ -151,7 +151,7 @@ double Mis_GetTimeStep_PostBounce( const int lv, const double dTime_dt )
 #  endif
 
 
-   dt_NuHeat = CCSN_NuHeat_TimeFac / dtInv_NuHeat;
+   dt_NuHeat = CCSN_Dt_PB_NuHeat_Fac / dtInv_NuHeat;
 
    return dt_NuHeat;
 
@@ -161,8 +161,8 @@ double Mis_GetTimeStep_PostBounce( const int lv, const double dTime_dt )
 
 //-------------------------------------------------------------------------------------------------------
 // Function    :  Mis_GetTimeStep_CoreCollapse
-// Description :  Set the time-step to CCSN_CC_Red_DT during the core collape once the central
-//                density reaches CCSN_CC_CentralDensFac (g/cm^3) to get a more accurate bounce time
+// Description :  Set the time-step to CCSN_Dt_CC_TimeStep during the core collape once the central
+//                density reaches CCSN_Dt_CC_Thres_Dens (g/cm^3) to get a more accurate bounce time
 //
 // Note        :  1. This function should be applied to both physical and comoving coordinates and always
 //                   return the evolution time-step (dt) actually used in various solvers
@@ -186,7 +186,7 @@ double Mis_GetTimeStep_CoreCollapse( const int lv, const double dTime_dt )
 
    const double CentralDens = CCSN_PeakDens / UNIT_D;
 
-   if ( CentralDens > CCSN_CC_CentralDensFac / UNIT_D ) dt = CCSN_CC_Red_DT / UNIT_T;
+   if ( CentralDens > CCSN_Dt_CC_Thres_Dens / UNIT_D ) dt = CCSN_Dt_CC_TimeStep / UNIT_T;
 
    return dt;
 

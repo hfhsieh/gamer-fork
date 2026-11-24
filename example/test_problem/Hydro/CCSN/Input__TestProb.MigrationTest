@@ -1,27 +1,29 @@
 # problem-specific runtime parameters
-CCSN_Prob        0                                 # target CCSN problem
-                                                   #    0 : Migration Test (GREP)
-                                                   #    1 : CCSN
+CCSN_Prob                     0                  # target CCSN problem
+                                                 #    0 : Migration Test (GREP)
+                                                 #    1 : CCSN
+CCSN_Prof_File                IC/tovstar_short   # filename of input profile
+CCSN_Opt_InitEint             2                  # Mode of obtaining internal energy in SetGridIC() [1]
+                                                 # ( 1=Temp Mode: Eint(dens, temp, [Ye])
+                                                 #   2=Pres Mode: Eint(dens, pres, [Ye]) )
 
-CCSN_Prof_File   IC/tovstar_short                  # filename of input profile
 
-CCSN_Mag         1                                 # target magnetic field profile                     [1]
-                                                   # ( 0: A_r     = 0
-                                                   #      A_phi   = B0* varpi^2 * (1 - rho / rho_max)^np * (P / P_max)
-                                                   #      A_theta = 0
-                                                   #   1: A_r     = 0
-                                                   #      A_phi   = 0.5 * B0 * ( R0^3 / (r^3 + R0^3) ) * r * sin(theta)
-                                                   #      A_theta = 0
-                                                   #   2: A_r     = 0.5 * B0 * ( R0^3 / (r^3 + R0^3) ) * r * cos(theta)
-                                                   #      A_phi   = 0.5 * B0 * ( R0^3 / (r^3 + R0^3) ) * r * sin(theta)
-                                                   #      A_theta = 0                                                   )
-CCSN_Mag_B0      1.0e14                            # magnetic field strength (in gauss)                [1.e14]
-CCSN_Mag_np      0.0                               # dependence of magnetic field on density           [0.0]
-CCSN_Mag_R0      1.0e8                             # characteristic radius of magnetic field (in cm)   [1.0e8]
+# magnetic field configuration
+CCSN_Mag                      1                  # target magnetic field profile [1]
+                                                 # ( 0: A_r     = 0
+                                                 #      A_phi   = B0* varpi^2 * (1 - rho / rho_max)^np * (P / P_max)
+                                                 #      A_theta = 0
+                                                 #   1: A_r     = 0
+                                                 #      A_phi   = 0.5 * B0 * ( R0^3 / (r^3 + R0^3) ) * r * sin(theta)
+                                                 #      A_theta = 0
+                                                 #   2: A_r     = 0.5 * B0 * ( R0^3 / (r^3 + R0^3) ) * r * cos(theta)
+                                                 #      A_phi   = 0.5 * B0 * ( R0^3 / (r^3 + R0^3) ) * r * sin(theta)
+                                                 #      A_theta = 0                                                   )
+CCSN_Mag_B0                   1.0e10             # magnetic field strength, in gauss [1.0e10]
+CCSN_Mag_np                   0.0                # dependence of magnetic field on density [0.0]
+CCSN_Mag_R0                   1.0e8              # characteristic radius of magnetic field, in cm [1.0e8]
 
-CCSN_GW_OUTPUT   0                                 # output GW signal (0=off, 1=on)                    [0]
-CCSN_GW_DT       1.0                               # output interval of GW signal                      [1.0]
 
-CCSN_Eint_Mode   2                                 # Mode of obtaining internal energy in SetGridIC()  [2]
-                                                   # ( 1=Temp Mode: Eint(dens, temp, [Ye])
-                                                   #   2=Pres Mode: Eint(dens, pres, [Ye]) )
+# data dump
+CCSN_Output_GW                0                  # output GW signals (0=off, 1=on) [0]
+CCSN_Output_GW_Dt             0.1                # output GW signals every CCSN_Output_GW_Dt time interval [1.0]
