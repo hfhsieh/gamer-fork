@@ -770,8 +770,8 @@ void Src_WorkBeforeMajorFunc_Leakage( const int lv, const double TimeNew, const 
          Passive[ YE      - NCOMP_FLUID ] = Ray_Ye.Data[i];
 
 #        ifdef TEMP_IG
-//       set the initial guess of temperature to 1 MeV
-         Passive[ TEMP_IG - NCOMP_FLUID ] = 1.0e6 / Const_kB_eV;
+//       use the default temperature guess of 1 MeV in the Nuclear EoS
+         Passive[ TEMP_IG - NCOMP_FLUID ] = -1.0;
 #        endif
 
          const real Temp = EoS_DensEint2Temp_CPUPtr( Ray_Dens_Code.Data[i], Ray_Temp_Kelv.Data[i],

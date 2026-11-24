@@ -149,9 +149,9 @@ void nuc_eos_C_short( real *Out, const real *In,
               *keyerr   = 0;
 
 #  if ( NUC_TABLE_MODE == NUC_TABLE_MODE_TEMP )
-   real lt_IG = 1.0;
+   real lt_IG = 0.0;
 
-   if ( Temp_InitGuess != NULL_REAL )
+   if ( Temp_InitGuess != NULL_REAL  &&  Temp_InitGuess > 0.0 )
    {
       lt_IG = LOG10( Temp_InitGuess );
       lt_IG = MAX(  MIN( lt_IG, logtoreps[ntoreps-1] ), logtoreps[0]  );

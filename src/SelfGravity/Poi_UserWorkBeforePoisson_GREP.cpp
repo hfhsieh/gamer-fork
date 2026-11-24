@@ -298,9 +298,9 @@ void Poi_Prepare_GREP( const double Time, const int lv )
          Passive[ YE - NCOMP_FLUID ] = Pres_Tot->Data[b];
 
 #        ifdef TEMP_IG
-//       set the initial guess of temperature to 1 MeV
 //###REVISE: support Temp_IG from Aux_ComputeProfile()
-         Passive[ TEMP_IG - NCOMP_FLUID ] = 1.0e6 / Const_kB_eV;
+//       use the default temperature guess of 1 MeV in the Nuclear EoS
+         Passive[ TEMP_IG - NCOMP_FLUID ] = -1.0;
 #        endif
 
          Pres_Tot->Data[b] = EoS_DensEint2Pres_CPUPtr( Dens_Tot->Data[b], Engy_Tot->Data[b],
