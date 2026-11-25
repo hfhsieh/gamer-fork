@@ -1,5 +1,4 @@
 #include "GAMER.h"
-#include "TestProb.h"
 
 
 #ifdef SUPPORT_HDF5
@@ -56,7 +55,7 @@ static double     CCSN_Mag_R0;                     // characteristic radius of m
 static int        CCSN_Rot;                        // mode for rotational profile (0:off, 1:analytical, 2:table)
                                                    // --> analytical formula: Omega(r) = Omega_0 * [ R_0^2 / (r^2 + R_0^2) ],
                                                    //     where r is the spherical radius
-static double     CCSN_Rot_R0;                     // characteristic radius R_0 (in cm) in the analytical formula
+static double     CCSN_Rot_R0;                     // characteristic radius R_0 in the analytical formula, in cm
 static double     CCSN_Rot_Omega0;                 // central angular frequency Omega_0 in the analytical formula, in rad/s
 static double     CCSN_Rot_Fac;                    // multiplication factor for the tabular rotational profile
 
@@ -87,10 +86,10 @@ static double     CCSN_Output_GW_Dt;               // output GW signals every CC
 
 
 // problem-specific function prototypes
-void   Record_CCSN_CentralQuant();
+void   Record_CCSN_Properties();
 void   Record_CCSN_GWSignal();
 void   Detect_CoreBounce();
-void   Detect_Shock();
+void   Compute_ShockRadius();
 double Mis_GetTimeStep_CoreCollapse( const int lv, const double dTime_dt );
 double Mis_GetTimeStep_PostBounce( const int lv, const double dTime_dt );
 bool   Flag_Region_CCSN( const int i, const int j, const int k, const int lv, const int PID );
@@ -363,22 +362,35 @@ void SetParameter()
       if ( OPT__INIT == INIT_BY_RESTART )
       {
          CCSN_Is_PostBounce = ( CCSN_BounceTime > 0.0 ) ? 1 : 0;
-
          PRINT_RESET_PARA( CCSN_Is_PostBounce, FORMAT_INT, "" );
       }
    }
 
+//###REVISE: move sanity checks to Validate() and update Init_TestProb_Hydro_CCSN()
 #  if ( EOS != EOS_NUCLEAR )
    if ( CCSN_Opt_InitEint == 1 )
       Aux_Error( ERROR_INFO, "Temperature mode for initializing grids only works with EOS_NUCLEAR !!\n" );
 #  endif
 
-// (1-3-2) checks for the migration test
+// (1-3-2) check runtime parameters related to OPT__FLAG_REGION
+   if ( OPT__FLAG_REGION )
+   {
+      if ( CCSN_Prob == Migration_Test )
+         Aux_Error( ERROR_INFO, "OPT__FLAG_REGION is not supported for Migration_Test !!\n" );
+   }
+
+   else
+   {
+      if ( CCSN_Ref_AngRes_Max > 0.0 )
+         Aux_Error( ERROR_INFO, "OPT__FLAG_REGION is disabled for CCSN_Ref_AngRes_Max (%14.7e) !!\n", CCSN_Ref_AngRes_Max );
+
+      if ( CCSN_Ref_BaseRad > 0.0 )
+         Aux_Error( ERROR_INFO, "OPT__FLAG_REGION is disabled for CCSN_Ref_BaseRad (%14.7e) !!\n", CCSN_Ref_BaseRad );
+   }
+
+// (1-3-3) checks for the migration test
    if ( CCSN_Prob == Migration_Test )
    {
-      if ( OPT__FLAG_REGION )
-         Aux_Error( ERROR_INFO, "%s is not supported for %s = %s !!\n", "OPT__FLAG_REGION", "CCSN_Prob", Migration_Test );
-
       if ( CCSN_Opt_InitEint == 1 )
          Aux_Error( ERROR_INFO, "Temperature mode for initializing grids is not supported in Migration Test yet !!\n" );
 
@@ -386,7 +398,7 @@ void SetParameter()
          Aux_Error( ERROR_INFO, "unsupported CCSN_Rot (%d) for Migration Test !!\n", CCSN_Rot );
    }
 
-// (1-3-3) checks and setting for the CCSN problems
+// (1-3-4) checks and setting for the CCSN problems
    if ( CCSN_Prob == CCSN )
    {
 //    collapse phase
@@ -394,8 +406,8 @@ void SetParameter()
       {
 //       CCSN_Dt_CC_TimeStep should be smaller than DT__MAX * UNIT_T
          if ( CCSN_Dt_CC_TimeStep > DT__MAX * UNIT_T )
-            Aux_Error( ERROR_INFO, "%s = %13.7e should be smaller than %s = %13.7e !!\n", "CCSN_Dt_CC_TimeStep",
-                       CCSN_Dt_CC_TimeStep, "DT__MAX * UNIT_T", DT__MAX * UNIT_T );
+            Aux_Error( ERROR_INFO, "CCSN_Dt_CC_TimeStep (%14.7e) should be smaller than DT__MAX * UNIT_T (%14.7e) !!\n",
+                       CCSN_Dt_CC_TimeStep, DT__MAX * UNIT_T );
 
          if ( CCSN_Ref_CC_Flag1 )
          {
@@ -407,8 +419,8 @@ void SetParameter()
             }
 
             if ( CCSN_Ref_CC_MaxLv1 >= MAX_LEVEL )
-               Aux_Error( ERROR_INFO, "%s = %d should be smaller than %s = %d !!\n", "CCSN_Ref_CC_MaxLv1",
-                          CCSN_Ref_CC_MaxLv1, "MAX_LEVEL", MAX_LEVEL );
+               Aux_Error( ERROR_INFO, "CCSN_Ref_CC_MaxLv1 (%d) should be smaller than MAX_LEVEL (%d) !!\n",
+                          CCSN_Ref_CC_MaxLv1, MAX_LEVEL );
          }
 
          if ( CCSN_Ref_CC_Flag2 )
@@ -421,23 +433,23 @@ void SetParameter()
             }
 
             if ( CCSN_Ref_CC_MaxLv2 >= MAX_LEVEL )
-               Aux_Error( ERROR_INFO, "%s = %d should be smaller than %s = %d !!\n", "CCSN_Ref_CC_MaxLv2",
-                          CCSN_Ref_CC_MaxLv2, "MAX_LEVEL", MAX_LEVEL );
+               Aux_Error( ERROR_INFO, "CCSN_Ref_CC_MaxLv2 (%d) should be smaller than MAX_LEVEL (%d) !!\n",
+                          CCSN_Ref_CC_MaxLv2, MAX_LEVEL );
 
 //          CCSN_Ref_CC_MaxLv1 should be smaller than CCSN_Ref_CC_MaxLv2
             if (  CCSN_Ref_CC_Flag1  &&  ( CCSN_Ref_CC_MaxLv2 <= CCSN_Ref_CC_MaxLv1 )  )
-               Aux_Error( ERROR_INFO, "%s = %d should be smaller than %s = %d !!\n", "CCSN_Ref_CC_MaxLv1",
-                          CCSN_Ref_CC_MaxLv1, "CCSN_Ref_CC_MaxLv2", CCSN_Ref_CC_MaxLv2   );
+               Aux_Error( ERROR_INFO, "CCSN_Ref_CC_MaxLv1 (%d) should be smaller than CCSN_Ref_CC_MaxLv2 (%d) !!\n",
+                          CCSN_Ref_CC_MaxLv1, CCSN_Ref_CC_MaxLv2 );
 
 //          CCSN_Ref_CC_Dens2 should be larger than CCSN_Ref_CC_Dens1
             if (  CCSN_Ref_CC_Flag1  &&  ( CCSN_Ref_CC_Dens2 <= CCSN_Ref_CC_Dens1 )  )
-               Aux_Error( ERROR_INFO, "%s = %13.7e should be larger than $s = %13.7e !!\n", "CCSN_Ref_CC_Dens2",
-                          CCSN_Ref_CC_Dens2, "CCSN_Ref_CC_Dens1", CCSN_Ref_CC_Dens1 );
+               Aux_Error( ERROR_INFO, "CCSN_Ref_CC_Dens2 (%14.7e) should be larger than CCSN_Ref_CC_Dens1 (%14.7e) !!\n",
+                          CCSN_Ref_CC_Dens2, CCSN_Ref_CC_Dens1 );
          }
 
 //       do not mix formulated-rotation and CCSN_Rot_Fac
          if ( CCSN_Rot == 1  &&  CCSN_Rot_Fac > 0.0 )
-            Aux_Error( ERROR_INFO, "%s = %d and %s shouldn't be mixed\n", "CCSN_Rot", CCSN_Rot, "CCSN_Rot_Fac" );
+            Aux_Error( ERROR_INFO, "CCSN_Rot (%d) and CCSN_Rot_Fac shouldn't be mixed !!\n", CCSN_Rot );
 
          if ( ! SrcTerms.Deleptonization )
             Aux_Error( ERROR_INFO, "SRC_DELEPTONIZATION must be enabled in the collapse phase !!\n" );
@@ -478,25 +490,17 @@ void SetParameter()
       } // if ( ! CCSN_Is_PostBounce ) ... else ...
    } // if ( CCSN_Prob == CCSN )
 
-// (1-3-4) check OPT__FLAG_REGION is enabled for CCSN_Ref_AngRes_Max and convert degree to radian
-   const double Deg2Rad = M_PI/180.0;
+// (1-3-5) check and convert CCSN_Ref_AngRes_Min and CCSN_Ref_AngRes_Max to radian
+   const double Deg2Rad = M_PI / 180.0;
 
-   if ( CCSN_Ref_AngRes_Max > 0.0 ) {
-      CCSN_Ref_AngRes_Max *= Deg2Rad;
-      PRINT_RESET_PARA( CCSN_Ref_AngRes_Max, FORMAT_REAL, "" );
+   if ( CCSN_Ref_AngRes_Max > 0.0 )   CCSN_Ref_AngRes_Max *= Deg2Rad;
+   if ( CCSN_Ref_AngRes_Min > 0.0 )   CCSN_Ref_AngRes_Min *= Deg2Rad;
 
-      if ( !OPT__FLAG_REGION )
-         Aux_Error( ERROR_INFO, "%s is disabled for %s = %13.7e !!\n", "OPT__FLAG_REGION", "CCSN_Ref_AngRes_Max", CCSN_Ref_AngRes_Max );
-   }
-
-   if ( CCSN_Ref_AngRes_Min > 0.0 ) {
-      CCSN_Ref_AngRes_Min *= Deg2Rad;
-      PRINT_RESET_PARA( CCSN_Ref_AngRes_Min, FORMAT_REAL, "" );
-   }
-
-   if ( CCSN_Ref_AngRes_Min > 0.0  &&  CCSN_Ref_AngRes_Max > 0.0  &&
+   if ( CCSN_Ref_AngRes_Min > 0.0  &&
+        CCSN_Ref_AngRes_Max > 0.0  &&
         CCSN_Ref_AngRes_Min < 2.0 * CCSN_Ref_AngRes_Max )
-      Aux_Error( ERROR_INFO, "CCSN_Ref_AngRes_Min (%13.7e) must be larger than 2.0 * CCSN_Ref_AngRes_Max (%13.7e) !!\n", CCSN_Ref_AngRes_Min, CCSN_Ref_AngRes_Max );
+      Aux_Error( ERROR_INFO, "CCSN_Ref_AngRes_Min (%14.7e) must be larger than 2.0 * CCSN_Ref_AngRes_Max (%14.7e) !!\n",
+                 CCSN_Ref_AngRes_Min, CCSN_Ref_AngRes_Max );
 
 
 // (2) set the problem-specific derived parameters
@@ -509,12 +513,14 @@ void SetParameter()
    const long   End_Step_Default = __INT_MAX__;
    const double End_T_Default    = __FLT_MAX__;
 
-   if ( END_STEP < 0 ) {
+   if ( END_STEP < 0 )
+   {
       END_STEP = End_Step_Default;
       PRINT_RESET_PARA( END_STEP, FORMAT_LONG, "" );
    }
 
-   if ( END_T < 0.0 ) {
+   if ( END_T < 0.0 )
+   {
       END_T = End_T_Default;
       PRINT_RESET_PARA( END_T, FORMAT_REAL, "" );
    }
@@ -527,48 +533,65 @@ void SetParameter()
       Aux_Message( stdout, "  test problem ID                                                    = %d\n",     TESTPROB_ID              );
       Aux_Message( stdout, "  target CCSN problem                                                = %s\n",     CCSN_Name                );
       Aux_Message( stdout, "  initial profile                                                    = %s\n",     CCSN_Prof_File           );
+      Aux_Message( stdout, "  mode for obtaining internal energy                                 = %d\n",     CCSN_Opt_InitEint        );
+      if ( CCSN_Prob == CCSN )
+      Aux_Message( stdout, "  core bounce has occurred                                           = %d\n",     CCSN_Is_PostBounce       );
+
+//    magnetic field configuration
 #     ifdef MHD
       Aux_Message( stdout, "  magnetic field profile                                             = %d\n",     CCSN_Mag                 );
-      Aux_Message( stdout, "  magnetic field strength                                            = %13.7e\n", CCSN_Mag_B0              );
-      Aux_Message( stdout, "  dependence of magnetic field on density                            = %13.7e\n", CCSN_Mag_np              );
-      Aux_Message( stdout, "  characteristic radius of magnetic field                            = %13.7e\n", CCSN_Mag_R0              );
+      Aux_Message( stdout, "  magnetic field strength, in gauss                                  = %14.7e\n", CCSN_Mag_B0              );
+      if ( CCSN_Mag == Liu2008 )
+      Aux_Message( stdout, "  dependence of magnetic field on density                            = %14.7e\n", CCSN_Mag_np              );
+      if ( CCSN_Mag == Suwa2007  ||  CCSN_Mag == Obergaulinger2017 )
+      Aux_Message( stdout, "  characteristic radius of magnetic field, in cm                     = %14.7e\n", CCSN_Mag_R0              );
 #     endif
-      Aux_Message( stdout, "  output GW signals                                                  = %d\n",     CCSN_Output_GW           );
-      Aux_Message( stdout, "  sampling interval of GW signals                                    = %13.7e\n", CCSN_Output_GW_Dt        );
-      Aux_Message( stdout, "  mode for obtaining internal energy                                 = %d\n",     CCSN_Opt_InitEint        );
 
+//    rotation profile
+      Aux_Message( stdout, "  mode for rotational profile                                        = %d\n",     CCSN_Rot                 );
+      if ( CCSN_Rot == 1 ) {
+      Aux_Message( stdout, "  characteristic rotational radius R_0, in cm                        = %14.7e\n", CCSN_Rot_R0              );
+      Aux_Message( stdout, "  central angular frequency Omega_0, in rad/s                        = %14.7e\n", CCSN_Rot_Omega0          ); }
+      if ( CCSN_Rot == 2 )
+      Aux_Message( stdout, "  multiplication factor for rotational profile                       = %14.7e\n", CCSN_Rot_Fac             );
+
+//    grid refinement
+      if ( CCSN_Prob == CCSN  &&  !CCSN_Is_PostBounce )
+      {
+      if ( CCSN_Ref_CC_Flag1 ) {
+      Aux_Message( stdout, "  maximum refinement level limit 1 in the collapse phase             = %d\n",     CCSN_Ref_CC_MaxLv1       );
+      Aux_Message( stdout, "  density threshold for refinement level limit 1, in g/cm3           = %14.7e\n", CCSN_Ref_CC_Dens1        ); }
+      if ( CCSN_Ref_CC_Flag2 ) {
+      Aux_Message( stdout, "  maximum refinement level limit 2 in the collapse phase             = %d\n",     CCSN_Ref_CC_MaxLv2       );
+      Aux_Message( stdout, "  density threshold for refinement level limit 2, in g/cm3           = %14.7e\n", CCSN_Ref_CC_Dens2        ); }
+      }
+
+      Aux_Message( stdout, "  radius within which maximum refinement is enforced, in cm          = %14.7e\n", CCSN_Ref_MaxLv_Rad           );
+      Aux_Message( stdout, "  characteristic radius for maximum refinement level, in cm          = %14.7e\n", CCSN_Ref_BaseRad*UNIT_L      );
+      Aux_Message( stdout, "  minimum angular resolution, in degrees                             = %14.7e\n", CCSN_Ref_AngRes_Min/Deg2Rad  );
+      Aux_Message( stdout, "  maximum angular resolution, in degrees                             = %14.7e\n", CCSN_Ref_AngRes_Max/Deg2Rad  );
+
+//    time-step
       if ( CCSN_Prob == CCSN )
       {
       if ( !CCSN_Is_PostBounce ) {
-      if ( CCSN_Ref_CC_Flag1 ) {
-      Aux_Message( stdout, "  reduced maxmimum refinement lv 1                                   = %d\n",     CCSN_Ref_CC_MaxLv1       );
-      Aux_Message( stdout, "  central density threshold for CCSN_Ref_CC_MaxLv1                   = %13.7e\n", CCSN_Ref_CC_Dens1        ); }
-      if ( CCSN_Ref_CC_Flag2 ) {
-      Aux_Message( stdout, "  reduced maxmimum refinement lv 2                                   = %d\n",     CCSN_Ref_CC_MaxLv2       );
-      Aux_Message( stdout, "  central density threshold for CCSN_Ref_CC_MaxLv2                   = %13.7e\n", CCSN_Ref_CC_Dens2        ); }
-      Aux_Message( stdout, "  central density factor for reducing dt                             = %13.7e\n", CCSN_Dt_CC_Thres_Dens    );
-      Aux_Message( stdout, "  reduced dt near bounce                                             = %13.7e\n", CCSN_Dt_CC_TimeStep      ); }
+      Aux_Message( stdout, "  density threshold for reducing dt in the collapse phase, in g/cm3  = %14.7e\n", CCSN_Dt_CC_Thres_Dens    );
+      Aux_Message( stdout, "  reduced dt when central density exceeds the threshold near bounce  = %14.7e\n", CCSN_Dt_CC_TimeStep      ); }
 
-      Aux_Message( stdout, "  scaling factor for lightbulb/leakage dt                            = %13.7e\n", CCSN_Dt_PB_NuHeat_Fac    );
-      Aux_Message( stdout, "  whether core bounce has occurred                                   = %d\n",     CCSN_Is_PostBounce       );
-      Aux_Message( stdout, "  pressure threshold factor for detecting shock                      = %13.7e\n", CCSN_Shock_ThresFac_Pres );
-      Aux_Message( stdout, "  velocity threshold factor for detecting shock                      = %13.7e\n", CCSN_Shock_ThresFac_Vel  );
-      Aux_Message( stdout, "  weighting of each cell    for detecting shock                      = %d\n",     CCSN_Shock_Weight        );
+      Aux_Message( stdout, "  scaling factor for dt constrained by the neutrino scheme           = %14.7e\n", CCSN_Dt_PB_NuHeat_Fac    );
+      Aux_Message( stdout, "  dt criterion on Ye for the neutrino scheme                         = %d\n",     CCSN_Dt_PB_NuHeat_YeMode );
       }
 
-      Aux_Message( stdout, "  mode for rotational profile                                        = %d\n",     CCSN_Rot                 );
-      if ( CCSN_Rot == 1 ) {
-      Aux_Message( stdout, "  characteristic rotational radius R_0 (in cm)                       = %13.7e\n", CCSN_Rot_R0              );
-      Aux_Message( stdout, "  central angular frequency Omega_0 (in rad/s)                       = %13.7e\n", CCSN_Rot_Omega0          ); }
-      if ( CCSN_Rot == 2 )
-      Aux_Message( stdout, "  multiplication factor for rotational profile                       = %13.7e\n", CCSN_Rot_Fac             );
+//    data dump
+      Aux_Message( stdout, "  output GW signals                                                  = %d\n",     CCSN_Output_GW           );
+      Aux_Message( stdout, "  output interval of GW signals                                      = %14.7e\n", CCSN_Output_GW_Dt        );
+      if ( CCSN_Prob == CCSN )
+      Aux_Message( stdout, "  output interval during the postbounce phase                        = %14.7e\n", CCSN_Output_PB_Dt        );
 
-      Aux_Message( stdout, "  radius within which to refine to the maximum allowed level (in cm) = %13.7e\n", CCSN_Ref_MaxLv_Rad           );
-      Aux_Message( stdout, "  minimum angular resolution (in degrees)                            = %13.7e\n", CCSN_Ref_AngRes_Min/Deg2Rad  );
-      Aux_Message( stdout, "  maximum angular resolution (in degrees)                            = %13.7e\n", CCSN_Ref_AngRes_Max/Deg2Rad  );
-      Aux_Message( stdout, "  reference distance for the maximum refinement level                = %13.7e\n", CCSN_Ref_BaseRad         );
-      Aux_Message( stdout, "  dt criterion on Ye                                                 = %d\n",     CCSN_Dt_PB_NuHeat_YeMode );
-      Aux_Message( stdout, "  output interval during the postbounce phase                        = %13.7e\n", CCSN_Output_PB_Dt        );
+//    miscellaneous
+      Aux_Message( stdout, "  pressure threshold factor for detecting shock                      = %14.7e\n", CCSN_Shock_ThresFac_Pres );
+      Aux_Message( stdout, "  velocity threshold factor for detecting shock                      = %14.7e\n", CCSN_Shock_ThresFac_Vel  );
+      Aux_Message( stdout, "  weighting of each cell    for detecting shock                      = %d\n",     CCSN_Shock_Weight        );
       Aux_Message( stdout, "=======================================================================================\n"  );
    }
 
@@ -620,11 +643,11 @@ void SetGridIC( real fluid[], const double x, const double y, const double z, co
    Pres = Mis_InterpolateFromTable( CCSN_Prof_NBin, Table_R, Table_Pres, r );
 
    if ( Dens == NULL_REAL )
-      Aux_Error( ERROR_INFO, "interpolation failed for density at radius %13.7e !!\n", r );
+      Aux_Error( ERROR_INFO, "interpolation failed for density at radius %14.7e !!\n", r );
    if ( Velr == NULL_REAL )
-      Aux_Error( ERROR_INFO, "interpolation failed for radial velocity at radius %13.7e !!\n", r );
+      Aux_Error( ERROR_INFO, "interpolation failed for radial velocity at radius %14.7e !!\n", r );
    if ( Pres == NULL_REAL )
-      Aux_Error( ERROR_INFO, "interpolation failed for pressure at radius %13.7e !!\n", r );
+      Aux_Error( ERROR_INFO, "interpolation failed for pressure at radius %14.7e !!\n", r );
 
    if ( CCSN_Prob == CCSN )
    {
@@ -635,22 +658,21 @@ void SetGridIC( real fluid[], const double x, const double y, const double z, co
       Temp = Mis_InterpolateFromTable( CCSN_Prof_NBin, Table_R, Table_Temp, r );  // in Kelvin
 
       if ( Ye   == NULL_REAL )
-         Aux_Error( ERROR_INFO, "interpolation failed for Ye at radius %13.7e !!\n", r );
+         Aux_Error( ERROR_INFO, "interpolation failed for Ye at radius %14.7e !!\n", r );
       if ( Temp == NULL_REAL )
-         Aux_Error( ERROR_INFO, "interpolation failed for temperature at radius %13.7e !!\n", r );
+         Aux_Error( ERROR_INFO, "interpolation failed for temperature at radius %14.7e !!\n", r );
    }
 
-
-   Momx = Dens*Velr*x0/r;
-   Momy = Dens*Velr*y0/r;
-   Momz = Dens*Velr*z0/r;
+   Momx = Dens * Velr * x0 / r;
+   Momy = Dens * Velr * y0 / r;
+   Momz = Dens * Velr * z0 / r;
 
 // add angular momentum, if any
    if ( CCSN_Rot )
    {
       const double r_xy    = sqrt( SQR(x0) + SQR(y0) );
-      const double Cos_phi = x0/r_xy;
-      const double Sin_phi = y0/r_xy;
+      const double Cos_phi = x0 / r_xy;
+      const double Sin_phi = y0 / r_xy;
             double Omega_r, Vel_phi;
 
 //    rotational profile from the formula ( Omega(r)=Omega_0*[R_0^2/(r^2+R_0^2)], r: spherical radius )
@@ -675,7 +697,7 @@ void SetGridIC( real fluid[], const double x, const double y, const double z, co
       Vel_phi  = r_xy * Omega_r;
       Momx    -= Dens * Vel_phi * Sin_phi;
       Momy    += Dens * Vel_phi * Cos_phi;
-   }
+   } // if ( CCSN_Rot )
 
 // calculate the internal energy
 #  if ( EOS == EOS_NUCLEAR )
@@ -753,8 +775,7 @@ void SetGridIC( real fluid[], const double x, const double y, const double z, co
 // Note        :  1. This function will be invoked by multiple OpenMP threads when OPENMP is enabled
 //                   (unless OPT__INIT_GRID_WITH_OMP is disabled)
 //                   --> Please ensure that everything here is thread-safe
-//                2. Generate the poloidal B field from a variant form of the vector potential in
-//                   Liu+ 2008, Phys. Rev. D78, 024012:
+//                2. Generate the poloidal B field from the vector potential in Liu+ 2008, Phys. Rev. D78, 024012:
 //                      A_r     = 0.0
 //                      A_phi   = B0 * varpi^2 * (1 - rho / rho_max)^np * (P / P_max)
 //                      A_theta = 0.0
@@ -807,20 +828,20 @@ void SetBFieldIC_Liu2008( real magnetic[], const double x, const double y, const
    dens_yp = Mis_InterpolateFromTable( CCSN_Prof_NBin, Table_R, Table_Dens, r_yp );
    dens_zp = Mis_InterpolateFromTable( CCSN_Prof_NBin, Table_R, Table_Dens, r_zp );
 
-   if ( dens    == NULL_REAL )   Aux_Error( ERROR_INFO, "interpolation failed for dens    at radius %13.7e !!\n", r    );
-   if ( dens_xp == NULL_REAL )   Aux_Error( ERROR_INFO, "interpolation failed for dens_xp at radius %13.7e !!\n", r_xp );
-   if ( dens_yp == NULL_REAL )   Aux_Error( ERROR_INFO, "interpolation failed for dens_yp at radius %13.7e !!\n", r_yp );
-   if ( dens_zp == NULL_REAL )   Aux_Error( ERROR_INFO, "interpolation failed for dens_zp at radius %13.7e !!\n", r_zp );
+   if ( dens    == NULL_REAL )   Aux_Error( ERROR_INFO, "interpolation failed for dens    at radius %14.7e !!\n", r    );
+   if ( dens_xp == NULL_REAL )   Aux_Error( ERROR_INFO, "interpolation failed for dens_xp at radius %14.7e !!\n", r_xp );
+   if ( dens_yp == NULL_REAL )   Aux_Error( ERROR_INFO, "interpolation failed for dens_yp at radius %14.7e !!\n", r_yp );
+   if ( dens_zp == NULL_REAL )   Aux_Error( ERROR_INFO, "interpolation failed for dens_zp at radius %14.7e !!\n", r_zp );
 
    pres    = Mis_InterpolateFromTable( CCSN_Prof_NBin, Table_R, Table_Pres, r    );
    pres_xp = Mis_InterpolateFromTable( CCSN_Prof_NBin, Table_R, Table_Pres, r_xp );
    pres_yp = Mis_InterpolateFromTable( CCSN_Prof_NBin, Table_R, Table_Pres, r_yp );
    pres_zp = Mis_InterpolateFromTable( CCSN_Prof_NBin, Table_R, Table_Pres, r_zp );
 
-   if ( pres    == NULL_REAL )   Aux_Error( ERROR_INFO, "interpolation failed for pres    at radius %13.7e !!\n", r    );
-   if ( pres_xp == NULL_REAL )   Aux_Error( ERROR_INFO, "interpolation failed for pres_xp at radius %13.7e !!\n", r_xp );
-   if ( pres_yp == NULL_REAL )   Aux_Error( ERROR_INFO, "interpolation failed for pres_yp at radius %13.7e !!\n", r_yp );
-   if ( pres_zp == NULL_REAL )   Aux_Error( ERROR_INFO, "interpolation failed for pres_zp at radius %13.7e !!\n", r_zp );
+   if ( pres    == NULL_REAL )   Aux_Error( ERROR_INFO, "interpolation failed for pres    at radius %14.7e !!\n", r    );
+   if ( pres_xp == NULL_REAL )   Aux_Error( ERROR_INFO, "interpolation failed for pres_xp at radius %14.7e !!\n", r_xp );
+   if ( pres_yp == NULL_REAL )   Aux_Error( ERROR_INFO, "interpolation failed for pres_yp at radius %14.7e !!\n", r_yp );
+   if ( pres_zp == NULL_REAL )   Aux_Error( ERROR_INFO, "interpolation failed for pres_zp at radius %14.7e !!\n", r_zp );
 
 
    double dAy_dx = (  ( x0 + delta )*POW( 1.0 - dens_xp/dens_c, CCSN_Mag_np )*( pres_xp / pres_c )   \
@@ -850,8 +871,7 @@ void SetBFieldIC_Liu2008( real magnetic[], const double x, const double y, const
 // Note        :  1. This function will be invoked by multiple OpenMP threads when OPENMP is enabled
 //                   (unless OPT__INIT_GRID_WITH_OMP is disabled)
 //                   --> Please ensure that everything here is thread-safe
-//                2. Generate the poloidal B field from the vector potential in
-//                   Suwa+ 2007, PASJ, 59, 771:
+//                2. Generate the poloidal B field from the vector potential in Suwa+ 2007, PASJ, 59, 771:
 //                      A_r     = 0.0
 //                      A_phi   = 0.5 * B0 * ( R0^3 / (r^3 + R0^3) ) * r * sin(theta)
 //                      A_theta = 0.0
@@ -896,8 +916,7 @@ void SetBFieldIC_Suwa2007( real magnetic[], const double x, const double y, cons
 // Note        :  1. This function will be invoked by multiple OpenMP threads when OPENMP is enabled
 //                   (unless OPT__INIT_GRID_WITH_OMP is disabled)
 //                   --> Please ensure that everything here is thread-safe
-//                2. Generate the poloidal B field from a variant form of the vector potential in
-//                   Liu+ 2008, Phys. Rev. D78, 024012:
+//                2. Generate the poloidal B field from the vector potential in Liu+ 2008, Phys. Rev. D78, 024012:
 //                      A_r     = 0.0
 //                      A_phi   = B0 * varpi^2 * (1 - rho / rho_max)^np * (P / P_max)
 //                      A_theta = 0.0
@@ -966,8 +985,7 @@ double SetBFieldIC_VecPot_Liu2008( const double x, const double y, const double 
 // Note        :  1. This function will be invoked by multiple OpenMP threads when OPENMP is enabled
 //                   (unless OPT__INIT_GRID_WITH_OMP is disabled)
 //                   --> Please ensure that everything here is thread-safe
-//                2. Generate the poloidal B field from the vector potential in
-//                   Suwa+ 2007, PASJ, 59, 771:
+//                2. Generate the poloidal B field from the vector potential in Suwa+ 2007, PASJ, 59, 771:
 //                      A_r     = 0.0
 //                      A_phi   = 0.5 * B0 * ( R0^3 / (r^3 + R0^3) ) * r * sin(theta)
 //                      A_theta = 0.0
@@ -1021,8 +1039,7 @@ double SetBFieldIC_VecPot_Suwa2007( const double x, const double y, const double
 // Note        :  1. This function will be invoked by multiple OpenMP threads when OPENMP is enabled
 //                   (unless OPT__INIT_GRID_WITH_OMP is disabled)
 //                   --> Please ensure that everything here is thread-safe
-//                2. Generate the poloidal B field from the vector potential in
-//                   Obergaulinger & Aloy 2017, MNRAS, 469, L43:
+//                2. Generate the B field from the vector potential in Obergaulinger & Aloy 2017, MNRAS, 469, L43:
 //                       A_r   = 0.5 * B0 * ( R0^3 / (r^3 + R0^3) ) * r * cos(theta)
 //                       A_phi = 0.5 * B0 * ( R0^3 / (r^3 + R0^3) ) * r * sin(theta)
 //                       A_theta = 0
@@ -1086,7 +1103,7 @@ double SetBFieldIC_VecPot_Obergaulinger2017( const double x, const double y, con
 //                   --> It will be set automatically in "Flu_ResetByUser_API()" and "Model_Init_ByFunction_AssignData()"
 //                5. Enabled by the runtime option "OPT__RESET_FLUID"
 //
-// Parameter   :  fluid    : Fluid array storing both the input (origial) and reset values
+// Parameter   :  fluid    : Fluid array storing both the input (original) and reset values
 //                           --> Including both active and passive variables
 //                Emag     : Magnetic energy (MHD only)
 //                x/y/z    : Target physical coordinates
@@ -1122,8 +1139,8 @@ int Flu_ResetByUser_CCSN( real fluid[], const double Emag, const double x, const
 void Load_IC_Prof_CCSN()
 {
 
-   const bool RowMajor_No  = false;           // load data into the column major
-   const bool AllocMem_Yes = true;            // allocate memory for CCSN_Prof
+   const bool RowMajor_No  = false;   // load data into the column major
+   const bool AllocMem_Yes = true;    // allocate memory for CCSN_Prof
 
    CCSN_Prof_NBin = Aux_LoadTable( CCSN_Prof, CCSN_Prof_File, CCSN_NCol, CCSN_TargetCols, RowMajor_No, AllocMem_Yes );
 
@@ -1155,16 +1172,18 @@ void Record_CCSN()
    if ( CCSN_Prob == CCSN )
    {
 //    (1) check whether the core bounce occurs
-      if ( !CCSN_Is_PostBounce )
+      if ( ! CCSN_Is_PostBounce )
       {
          Detect_CoreBounce();
 
          if ( CCSN_Is_PostBounce )
          {
-//          dump the bounce time in standard output
-            if ( MPI_Rank == 0 )   Aux_Message( stdout, "Bounce time = %13.7e seconds !!\n", Time[0] * UNIT_T );
+//          (1-1) record the bounce time
+            if ( MPI_Rank == 0 )   Aux_Message( stdout, "Bounce time = %14.7e seconds !!\n", Time[0] * UNIT_T );
 
-//          disable the deleptonization scheme, and enable the lightbulb/leakage scheme
+            CCSN_BounceTime = Time[0];
+
+//          (1-2) disable the deleptonization scheme, and enable the neutrino scheme
             SrcTerms.Deleptonization = false;
 
 #           ifdef NEUTRINO_SCHEME
@@ -1181,7 +1200,7 @@ void Record_CCSN()
 
             Src_Init();
 
-//          initialize the dEdt_Nu field
+//          initialize the dEdt_Nu and dYedt_Nu fields
             for (int lv=0; lv<NLEVEL; lv++)
             {
                Src_AdvanceDt( lv, Time[lv], Time[lv], 0.0, amr->FluSg[lv], amr->MagSg[lv], false, false );
@@ -1189,10 +1208,7 @@ void Record_CCSN()
                Buf_GetBufferData( lv, amr->FluSg[lv], amr->MagSg[lv], NULL_INT, DATA_GENERAL, _TOTAL, _MAG, Flu_ParaBuf, USELB_YES );
             }
 
-//          record bounce time
-            CCSN_BounceTime = Time[0];
-
-//          update OUTPUT_DT according to CCSN_Output_PB_Dt
+//          (1-3) update OUTPUT_DT according to CCSN_Output_PB_Dt
             if ( CCSN_Output_PB_Dt > 0.0 )
             {
                OUTPUT_DT = CCSN_Output_PB_Dt;
@@ -1203,22 +1219,22 @@ void Record_CCSN()
                   DumpTime = round( Time[0]/OUTPUT_DT + 1.0 )*OUTPUT_DT;
             }
 
-//          forced output data at core bounce
+//          (1-4) forced output data at core bounce
             Output_DumpData( 2 );
          }
       } // if ( !CCSN_Is_PostBounce )
 
 
-//    (2) shock detection
-      if ( CCSN_Is_PostBounce )   Detect_Shock();
-   }
+//    (2) compute shock radius
+      if ( CCSN_Is_PostBounce )   Compute_ShockRadius();
+   } // if ( CCSN_Prob == CCSN )
 
 
-// (3) record quantities at the center
-   Record_CCSN_CentralQuant();
+// (3) record various properties
+   Record_CCSN_Properties();
 
 
-// (4) GW signal
+// (4) record GW signals
 #  ifdef GRAVITY
    if ( CCSN_Output_GW )
    {
@@ -1235,17 +1251,17 @@ void Record_CCSN()
             DumpTime_CCSN = (  int( Time[0] / CCSN_Output_GW_Dt ) + 1.0  ) * CCSN_Output_GW_Dt;
 
 //          be careful about round-off errors
-            if (   (  DumpTime_CCSN <= Time[0]  )                                         ||
+            if (   (  DumpTime_CCSN <= Time[0]  )                                                ||
                    (  Time[0] != 0.0 && fabs( (Time[0]-CCSN_Output_GW_Dt)/Time[0] ) < 1.0e-8  )  ||
                    (  Time[0] == 0.0 && fabs(  Time[0]-CCSN_Output_GW_Dt          ) < 1.0e-12 )      )
                DumpTime_CCSN += CCSN_Output_GW_Dt;
          }
       }
 
-//    output data if the elasped time > CCSN_Output_GW_Dt
+//    output data if the elapsed time > CCSN_Output_GW_Dt
       if ( Time[0] > DumpTime_CCSN )
       {
-         Record_CCSN_Output_GWSignal();
+         Record_CCSN_GWSignal();
          DumpTime_CCSN += CCSN_Output_GW_Dt;
       }
    } // if ( CCSN_Output_GW )
@@ -1265,12 +1281,14 @@ double Mis_GetTimeStep_CCSN( const int lv, const double dTime_dt )
 
    double dt_CCSN = HUGE_NUMBER;
 
+// collapse phase
    if ( ! CCSN_Is_PostBounce )
    {
       if ( SrcTerms.Deleptonization )
          dt_CCSN = fmin(  dt_CCSN, Mis_GetTimeStep_CoreCollapse( lv, dTime_dt )  );
    }
 
+// postbounce phase
    else
    {
 #     if ( NEUTRINO_SCHEME == LIGHTBULB  ||  NEUTRINO_SCHEME == LEAKAGE )
@@ -1295,12 +1313,12 @@ double Mis_GetTimeStep_CCSN( const int lv, const double dTime_dt )
 //                       this function will become useless
 //                2. Enabled by the runtime option "OPT__FLAG_USER"
 //
-// Parameter   :  i,j,k       : Indices of the target element in the patch ptr[ amr->FluSg[lv] ][lv][PID]
-//                lv          : Refinement level of the target patch
-//                PID         : ID of the target patch
-//                Threshold   : User-provided threshold for the flag operation, which is loaded from the
-//                              file "Input__Flag_User"
-//                              In order of radius_min, radius_max, threshold_dens
+// Parameter   :  i,j,k     : Indices of the target element in the patch ptr[ amr->FluSg[lv] ][lv][PID]
+//                lv        : Refinement level of the target patch
+//                PID       : ID of the target patch
+//                Threshold : User-provided threshold for the flag operation, which is loaded from the
+//                            file "Input__Flag_User"
+//                            In order of radius_min, radius_max, threshold_dens
 //
 // Return      :  "true"  if the flag criteria are satisfied
 //                "false" if the flag criteria are not satisfied
@@ -1344,7 +1362,7 @@ bool Flag_CCSN( const int i, const int j, const int k, const int lv, const int P
 void End_CCSN()
 {
 
-   delete [] CCSN_Prof;         CCSN_Prof       = NULL;
+   delete [] CCSN_Prof;   CCSN_Prof = NULL;
 
 } // FUNCTION : End_CCSN
 #endif // #if ( MODEL == HYDRO )
@@ -1393,12 +1411,6 @@ void Init_TestProb_Hydro_CCSN()
    Output_HDF5_UserPara_Ptr  = Output_HDF5_UserPara_CCSN;
 #  endif
 
-   if ( CCSN_Prob == CCSN )
-   {
-      Flag_User_Ptr            = Flag_CCSN;
-      Mis_GetTimeStep_User_Ptr = Mis_GetTimeStep_CCSN;
-   }
-
 #  ifdef MHD
    if ( OPT__INIT_BFIELD_BYVECPOT == INIT_MAG_BYVECPOT_FUNC )
    {
@@ -1407,6 +1419,7 @@ void Init_TestProb_Hydro_CCSN()
          case Liu2008           : Init_BField_ByVecPot_User_Ptr = SetBFieldIC_VecPot_Liu2008;           break;
          case Suwa2007          : Init_BField_ByVecPot_User_Ptr = SetBFieldIC_VecPot_Suwa2007;          break;
          case Obergaulinger2017 : Init_BField_ByVecPot_User_Ptr = SetBFieldIC_VecPot_Obergaulinger2017; break;
+         default                : Aux_Error( ERROR_INFO, "unsupported CCSN_Mag (%d) !!\n", CCSN_Mag );
       }
    }
 
@@ -1417,9 +1430,16 @@ void Init_TestProb_Hydro_CCSN()
          case Liu2008           : Init_Function_BField_User_Ptr = SetBFieldIC_Liu2008;                                    break;
          case Suwa2007          : Init_Function_BField_User_Ptr = SetBFieldIC_Suwa2007;                                   break;
          case Obergaulinger2017 : Aux_Error( ERROR_INFO, "unsupported. use OPT__INIT_BFIELD_BYVECPOT = 2 instead.\n" );   break;
+         default                : Aux_Error( ERROR_INFO, "unsupported CCSN_Mag (%d) !!\n", CCSN_Mag );
       }
    }
 #  endif // #if MHD
+
+   if ( CCSN_Prob == CCSN )
+   {
+      Flag_User_Ptr            = Flag_CCSN;
+      Mis_GetTimeStep_User_Ptr = Mis_GetTimeStep_CCSN;
+   }
 #  endif // #if ( MODEL == HYDRO )
 
 
@@ -1434,8 +1454,8 @@ void Init_TestProb_Hydro_CCSN()
 // Function    :  LoadField
 // Description :  Load a single field from the input compound dataset
 //
-// Note        :  1. This function works for arbitary datatype (int, float, char, 1D array ...)
-//                2. Memory must be allocated for FieldPtr in advance with sufficent size (except for "char *")
+// Note        :  1. This function works for arbitrary datatype (int, float, char, 1D array ...)
+//                2. Memory must be allocated for FieldPtr in advance with sufficient size (except for "char *")
 //                3. For loading a string, which has (type(FieldPtr) = (char *)), the memory must be freed
 //                   manually by calling free()
 //
@@ -1473,7 +1493,8 @@ herr_t LoadField( const char *FieldName, void *FieldPtr,
 
       H5_Status        = H5Tclose( H5_TypeID_Field );
       H5_Status        = H5Tclose( H5_TypeID_Load  );
-   } // if ( H5_FieldIdx >= 0 )
+   }
+
    else
    {
       Aux_Error( ERROR_INFO, "target field \"%s\" does not exist in the restart file !!\n", FieldName );

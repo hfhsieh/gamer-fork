@@ -5,7 +5,8 @@
 #define CCSN_DENS_BOUNCE_THRESHOLD 2.0e14
 
 
-       double CCSN_PeakDens;
+       double CCSN_PeakDens_CGS;
+       double CCSN_PeakDens_Code;
 
        double CCSN_Rsh_Min      = 0.0;
        double CCSN_Rsh_Max      = 0.0;
@@ -25,21 +26,24 @@ extern double CCSN_Shock_ThresFac_Pres;
 extern double CCSN_Shock_ThresFac_Vel;
 extern int    CCSN_Shock_Weight;
 
+#if ( defined NEUTRINO_SCHEME  &&  NEUTRINO_SCHEME == LEAKAGE )
        void Record_CCSN_Leakage();
 extern void Src_WorkBeforeMajorFunc_Leakage( const int lv, const double TimeNew, const double TimeOld, const double dt,
                                              double AuxArray_Flt[], int AuxArray_Int[] );
+#endif
 
 
 
 
 //-------------------------------------------------------------------------------------------------------
-// Function    :  Record_CCSN_CentralQuant
-// Description :  Record quantities at the center
+// Function    :  Record_CCSN_Properties
+// Description :  Record central quantities and other CCSN properties, including
+//                the CCSN center, shock radius, and neutrino leakage information
 //
 // Note        :  1. Invoked by Record_CCSN()
 //                2. The center here is defined as the cell with highest density
 //-------------------------------------------------------------------------------------------------------
-void Record_CCSN_CentralQuant()
+void Record_CCSN_Properties()
 {
 
 // find the peak density and its location
@@ -169,10 +173,11 @@ void Record_CCSN_CentralQuant()
    } // if ( MPI_Rank == 0 )
 
 
-// store the central density in cgs unit for detecting core bounces
-   CCSN_PeakDens = Extrema.Value * UNIT_D;
+// store the central density for detecting core bounces
+   CCSN_PeakDens_Code = Extrema.Value;
+   CCSN_PeakDens_CGS  = Extrema.Value * UNIT_D;
 
-} // FUNCTION : Record_CCSN_CentralQuant()
+} // FUNCTION : Record_CCSN_Properties()
 
 
 
@@ -180,9 +185,9 @@ void Record_CCSN_CentralQuant()
 //-------------------------------------------------------------------------------------------------------
 // Function    :  Record_CCSN_Leakage
 // Description :  Compute the net heating in the gain region, and the total luminosity,
-//                heating rate and net heating rate of the leakage scheme
+//                heating rate, and net heating rate from the leakage scheme
 //
-// Note        :  1. Invoked by Record_CCSN_CentralQuant()
+// Note        :  1. Invoked by Record_CCSN_Properties()
 //-------------------------------------------------------------------------------------------------------
 void Record_CCSN_Leakage()
 {
@@ -238,7 +243,6 @@ void Record_CCSN_Leakage()
          OMP_NetHeat[TID][n] = 0.0;
       }
 
-
 //    loop over all levels
       for (int lv=0; lv<=MAX_LEVEL; lv++)
       {
@@ -246,7 +250,6 @@ void Record_CCSN_Leakage()
 
          const double dh     = amr->dh[lv];
          const double dv_CGS = CUBE( dh * UNIT_L );
-
 
 #        pragma omp for schedule( static )
          for (int PID=0; PID<amr->NPatchComma[lv][1]; PID++)
@@ -553,16 +556,16 @@ void Record_CCSN_GWSignal()
 // Note        :  1. Invoked by Record_CCSN()
 //             :  2. Based on two criteria:
 //                   --> (a) The central density is larger than CCSN_DENS_BOUNCE_THRESHOLD (2e14)
-//                       (b) Any cells within 30km has entropy larger than 3
+//                       (b) Any cell within 30 km has entropy larger than 3
 //-------------------------------------------------------------------------------------------------------
 void Detect_CoreBounce()
 {
 
 // (1) criterion 1: central density is larger than CCSN_DENS_BOUNCE_THRESHOLD (2e14)
-   if ( CCSN_PeakDens < CCSN_DENS_BOUNCE_THRESHOLD )   return;
+   if ( CCSN_PeakDens_CGS < CCSN_DENS_BOUNCE_THRESHOLD )   return;
 
 
-// (2) criterion 2: any cells within 30km has entropy larger than 3
+// (2) criterion 2: any cell within 30km has entropy larger than 3
    double Center[3];
 
 #  ifdef GREP
@@ -654,14 +657,14 @@ void Detect_CoreBounce()
 
 
 //-------------------------------------------------------------------------------------------------------
-// Function    :  Detect_Shock
+// Function    :  Compute_ShockRadius
 // Description :  Measure the minimum, maximum, and average shock radius if a shock is present
 //
 // Note        :  1. Invoked by Record_CCSN()
-//                2. The average shock radius is weighted by the inverse cell volume
+//                2. The average shock radius is weighted by either the cell volume or inverse cell volume
 //                3. Ref: Balsara and Spicer, 1999, JCP, 149, 270, sec 2.2
 //-------------------------------------------------------------------------------------------------------
-void Detect_Shock()
+void Compute_ShockRadius()
 {
 
    const int    SHK_GHOST_SIZE = 1;
@@ -749,7 +752,6 @@ void Detect_Shock()
                             SHK_GHOST_SIZE, NPG, PID0_List+Disp, _TOTAL, _MAG,
                             OPT__FLU_INT_SCHEME, OPT__MAG_INT_SCHEME, UNIT_PATCH, NSIDE_26, false,
                             OPT__BC_FLU, BC_POT_NONE, -1.0, -1.0, -1.0, -1.0, false );
-
 
 #        pragma omp parallel for schedule( runtime )
          for (int PID_IDX=0; PID_IDX<8*NPG; PID_IDX++)
@@ -913,7 +915,7 @@ void Detect_Shock()
    CCSN_Rsh_Ave_Vinv = ( Shock_Found ) ? Shock_Ave_Vinv / Shock_Weight_Vinv : 0.0;
    CCSN_Rsh_Ave      = ( CCSN_Shock_Weight == 1 ) ? CCSN_Rsh_Ave_V : CCSN_Rsh_Ave_Vinv;
 
-} // FUNCTION : Detect_Shock()
+} // FUNCTION : Compute_ShockRadius()
 
 
 

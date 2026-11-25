@@ -3,20 +3,18 @@
 #if ( MODEL == HYDRO )
 
 
+extern double CCSN_PeakDens_CGS;
+extern double CCSN_Rsh_Max;
+extern double CCSN_Rsh_Ave;
+
 extern bool   CCSN_Ref_CC_Flag1;
 extern bool   CCSN_Ref_CC_Flag2;
 extern int    CCSN_Ref_CC_MaxLv1;
 extern int    CCSN_Ref_CC_MaxLv2;
 extern double CCSN_Ref_CC_Dens1;
 extern double CCSN_Ref_CC_Dens2;
-extern double CCSN_PeakDens;
-
-extern bool   CCSN_Is_PostBounce;
-extern double CCSN_Ref_BaseRad;
-extern double CCSN_Rsh_Max;
-extern double CCSN_Rsh_Ave;
-
 extern double CCSN_Ref_MaxLv_Rad;
+extern double CCSN_Ref_BaseRad;
 extern double CCSN_Ref_AngRes_Min;
 extern double CCSN_Ref_AngRes_Max;
 
@@ -32,12 +30,12 @@ extern double CCSN_Ref_AngRes_Max;
 //                       this function will become useless
 //                2. Enabled by the runtime option "OPT__FLAG_USER"
 //
-// Parameter   :  i,j,k       : Indices of the target element in the patch ptr[ amr->FluSg[lv] ][lv][PID]
-//                lv          : Refinement level of the target patch
-//                PID         : ID of the target patch
-//                Threshold   : User-provided threshold for the flag operation, which is loaded from the
-//                              file "Input__Flag_User"
-//                              In order of radius_min, radius_max, threshold_dens
+// Parameter   :  i,j,k     : Indices of the target element in the patch ptr[ amr->FluSg[lv] ][lv][PID]
+//                lv        : Refinement level of the target patch
+//                PID       : ID of the target patch
+//                Threshold : User-provided threshold for the flag operation, which is loaded from the
+//                            file "Input__Flag_User"
+//                            In order of radius_min, radius_max, threshold_dens
 //
 // Return      :  "true"  if the flag criteria are satisfied
 //                "false" if the flag criteria are not satisfied
@@ -45,8 +43,8 @@ extern double CCSN_Ref_AngRes_Max;
 bool Flag_CoreCollapse( const int i, const int j, const int k, const int lv, const int PID, const double *Threshold )
 {
 
-   bool Flag      = false;
-   bool MaxRefine = false;
+   bool Flag     = false;
+   bool Is_MaxLv = false;
 
    const double dh     = amr->dh[lv];
    const double Pos[3] = { amr->patch[0][lv][PID]->EdgeL[0] + (i+0.5)*dh,
@@ -59,29 +57,29 @@ bool Flag_CoreCollapse( const int i, const int j, const int k, const int lv, con
 #  endif
    const double R      = sqrt( SQR(dR[0]) + SQR(dR[1]) + SQR(dR[2]) );
 
-   const double CentralDens = CCSN_PeakDens / UNIT_D;
+   const double CentralDens = CCSN_PeakDens_CGS;
 
 
 // (1) check if the allowed maximum level is reached
-   if      ( CCSN_Ref_CC_Flag1  &&  CentralDens < CCSN_Ref_CC_Dens1 / UNIT_D )
-      MaxRefine = lv >= CCSN_Ref_CC_MaxLv1;
+   if      ( CCSN_Ref_CC_Flag1  &&  CentralDens < CCSN_Ref_CC_Dens1 )
+      Is_MaxLv = lv >= CCSN_Ref_CC_MaxLv1;
 
-   else if ( CCSN_Ref_CC_Flag2  &&  CentralDens < CCSN_Ref_CC_Dens2 / UNIT_D )
-      MaxRefine = lv >= CCSN_Ref_CC_MaxLv2;
+   else if ( CCSN_Ref_CC_Flag2  &&  CentralDens < CCSN_Ref_CC_Dens2 )
+      Is_MaxLv = lv >= CCSN_Ref_CC_MaxLv2;
 
 
-   if ( !MaxRefine ) {
+   if ( !Is_MaxLv )
+   {
 //    (2) check if the minimum angular resolution is reached
       if ( CCSN_Ref_AngRes_Min > 0.0  &&  R * CCSN_Ref_AngRes_Min < dh )
          Flag = true;
 
-//    (3) always refine to the highest level in the region within r < CCSN_Ref_MaxLv_Rad
-//    (3-a) always refine the innermost cells
+//    (3) always refine the innermost cells
       if ( R < amr->dh[lv] )
          Flag = true;
 
-//    (3-b) refine the region within r < CCSN_Ref_MaxLv_Rad
-      if ( R * UNIT_L < CCSN_Ref_MaxLv_Rad )
+//    (4) always refine to the allowed maximum level for cells with r <= CCSN_Ref_MaxLv_Rad
+      if ( R * UNIT_L <= CCSN_Ref_MaxLv_Rad )
          Flag = true;
    }
 
@@ -100,14 +98,13 @@ bool Flag_CoreCollapse( const int i, const int j, const int k, const int lv, con
 //                   --> The function pointer may be reset by various test problem initializers, in which case
 //                       this function will become useless
 //                2. Enabled by the runtime option "OPT__FLAG_USER"
-//                3. For lightbulb test problem
 //
-// Parameter   :  i,j,k       : Indices of the target element in the patch ptr[ amr->FluSg[lv] ][lv][PID]
-//                lv          : Refinement level of the target patch
-//                PID         : ID of the target patch
-//                Threshold   : User-provided threshold for the flag operation, which is loaded from the
-//                              file "Input__Flag_User"
-//                              In order of radius_min, radius_max, threshold_dens
+// Parameter   :  i,j,k     : Indices of the target element in the patch ptr[ amr->FluSg[lv] ][lv][PID]
+//                lv        : Refinement level of the target patch
+//                PID       : ID of the target patch
+//                Threshold : User-provided threshold for the flag operation, which is loaded from the
+//                            file "Input__Flag_User"
+//                            In order of radius_min, radius_max, threshold_dens
 //
 // Return      :  "true"  if the flag criteria are satisfied
 //                "false" if the flag criteria are not satisfied
@@ -129,16 +126,15 @@ bool Flag_PostBounce( const int i, const int j, const int k, const int lv, const
    const double R = sqrt( SQR(dR[0]) + SQR(dR[1]) + SQR(dR[2]) );
 
 
-// (1) always refine to the highest level in the region within r < CCSN_Ref_MaxLv_Rad
-// (1-a) always refine the innermost cells
+// (1) always refine the innermost cells
    if ( R < amr->dh[lv] )
       Flag = true;
 
-// (1-b) refine the region within r < CCSN_Ref_MaxLv_Rad
-   if ( R * UNIT_L < CCSN_Ref_MaxLv_Rad )
+// (2) always refine to the maximum level for cells with r <= CCSN_Ref_MaxLv_Rad
+   if ( R * UNIT_L <= CCSN_Ref_MaxLv_Rad )
       Flag = true;
 
-// (2) check if the minimum angular resolution is reached
+// (3) check if the minimum angular resolution is reached
    if ( CCSN_Ref_AngRes_Min > 0.0  &&  R * CCSN_Ref_AngRes_Min < dh )
       Flag = true;
 
@@ -158,9 +154,9 @@ bool Flag_PostBounce( const int i, const int j, const int k, const int lv, const
 //                   which must be set by a test problem initializer
 //                2. Enabled by the runtime option "OPT__FLAG_REGION"
 //
-// Parameter   :  i,j,k       : Indices of the target element in the patch ptr[0][lv][PID]
-//                lv          : Refinement level of the target patch
-//                PID         : ID of the target patch
+// Parameter   :  i,j,k : Indices of the target element in the patch ptr[0][lv][PID]
+//                lv    : Refinement level of the target patch
+//                PID   : ID of the target patch
 //
 // Return      :  "true/false"  if the input cell "is/is not" within the region allowed for refinement
 //-------------------------------------------------------------------------------------------------------
@@ -171,7 +167,6 @@ bool Flag_Region_CCSN( const int i, const int j, const int k, const int lv, cons
    const double Pos[3] = { amr->patch[0][lv][PID]->EdgeL[0] + (i+0.5)*dh,
                            amr->patch[0][lv][PID]->EdgeL[1] + (j+0.5)*dh,
                            amr->patch[0][lv][PID]->EdgeL[2] + (k+0.5)*dh  };
-
    bool Within = true;
 
 
@@ -183,18 +178,17 @@ bool Flag_Region_CCSN( const int i, const int j, const int k, const int lv, cons
    const double R      = sqrt( SQR(dR[0]) + SQR(dR[1]) + SQR(dR[2]) );
 
 
-// must check CCSN_Ref_MaxLv_Rad before evaluating other criteria
+// (1) always allow refinement to the maximum level for cells with r <= CCSN_Ref_MaxLv_Rad
    if ( R * UNIT_L <= CCSN_Ref_MaxLv_Rad )
       return true;
 
-// check the maximum allowed refinement level based on angular resolution
+// (2) check the maximum allowed refinement level based on angular resolution
    if ( CCSN_Ref_AngRes_Max > 0.0  &&  2.0 * R * CCSN_Ref_AngRes_Max > dh )
       Within = false;
 
    if ( !Within )   return Within;
 
-
-// check allowed maximum refine level based on distance to the center
+// (3) check allowed maximum refinement level based on distance to the center
    if ( CCSN_Ref_BaseRad > 0.0 )
    {
       const double R_base = CCSN_Ref_BaseRad;

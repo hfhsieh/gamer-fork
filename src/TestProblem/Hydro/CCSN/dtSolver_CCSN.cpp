@@ -4,12 +4,46 @@
 #if ( MODEL == HYDRO )
 
 
-extern double CCSN_Dt_PB_NuHeat_Fac;
+extern double CCSN_PeakDens_CGS;
 extern double CCSN_Dt_CC_Thres_Dens;
 extern double CCSN_Dt_CC_TimeStep;
-extern double CCSN_PeakDens;
+extern double CCSN_Dt_PB_NuHeat_Fac;
 extern int    CCSN_Dt_PB_NuHeat_YeMode;
 
+
+
+
+//-------------------------------------------------------------------------------------------------------
+// Function    :  Mis_GetTimeStep_CoreCollapse
+// Description :  Set the time-step to CCSN_Dt_CC_TimeStep during the core collapse once the central
+//                density exceeds CCSN_Dt_CC_Thres_Dens to get a more accurate bounce time
+//
+// Note        :  1. This function should be applied to both physical and comoving coordinates and always
+//                   return the evolution time-step (dt) actually used in various solvers
+//                   --> Physical coordinates : dt = physical time interval
+//                       Comoving coordinates : dt = delta(scale_factor) / ( Hubble_parameter*scale_factor^3 )
+//                   --> We convert dt back to the physical time interval, which equals "delta(scale_factor)"
+//                       in the comoving coordinates, in Mis_GetTimeStep()
+//                2. Invoked by Mis_GetTimeStep() using the function pointer "Mis_GetTimeStep_User_Ptr",
+//                   which must be set by a test problem initializer
+//                3. Enabled by the runtime option "OPT__DT_USER"
+//
+// Parameter   :  lv       : Target refinement level
+//                dTime_dt : dTime/dt (== 1.0 if COMOVING is off)
+//
+// Return      :  dt
+//-------------------------------------------------------------------------------------------------------
+double Mis_GetTimeStep_CoreCollapse( const int lv, const double dTime_dt )
+{
+
+   const double CentralDens = CCSN_PeakDens_CGS;
+         double dt          = HUGE_NUMBER;
+
+   if ( CentralDens > CCSN_Dt_CC_Thres_Dens )   dt = CCSN_Dt_CC_TimeStep / UNIT_T;
+
+   return dt;
+
+} // FUNCTION : Mis_GetTimeStep_CoreCollapse
 
 
 
@@ -117,6 +151,7 @@ double Mis_GetTimeStep_PostBounce( const int lv, const double dTime_dt )
                case 1 : dYe  = ( dYedt > 0.0 ) ? ( YeMax - Ye ) : ( YeMin - Ye );   break;
                case 2 : dYe  = Ye;                                                  break;
                case 3 : dYe  = __FLT_MAX__;                                         break;
+               default: Aux_Error( ERROR_INFO, "unsupported CCSN_Dt_PB_NuHeat_YeMode (%d) !!\n", CCSN_Dt_PB_NuHeat_YeMode );
             }
 #           else
             const real dYedt = NULL_REAL;
@@ -156,41 +191,6 @@ double Mis_GetTimeStep_PostBounce( const int lv, const double dTime_dt )
    return dt_NuHeat;
 
 } // FUNCTION : Mis_GetTimeStep_PostBounce
-
-
-
-//-------------------------------------------------------------------------------------------------------
-// Function    :  Mis_GetTimeStep_CoreCollapse
-// Description :  Set the time-step to CCSN_Dt_CC_TimeStep during the core collape once the central
-//                density reaches CCSN_Dt_CC_Thres_Dens (g/cm^3) to get a more accurate bounce time
-//
-// Note        :  1. This function should be applied to both physical and comoving coordinates and always
-//                   return the evolution time-step (dt) actually used in various solvers
-//                   --> Physical coordinates : dt = physical time interval
-//                       Comoving coordinates : dt = delta(scale_factor) / ( Hubble_parameter*scale_factor^3 )
-//                   --> We convert dt back to the physical time interval, which equals "delta(scale_factor)"
-//                       in the comoving coordinates, in Mis_GetTimeStep()
-//                2. Invoked by Mis_GetTimeStep() using the function pointer "Mis_GetTimeStep_User_Ptr",
-//                   which must be set by a test problem initializer
-//                3. Enabled by the runtime option "OPT__DT_USER"
-//
-// Parameter   :  lv       : Target refinement level
-//                dTime_dt : dTime/dt (== 1.0 if COMOVING is off)
-//
-// Return      :  dt
-//-------------------------------------------------------------------------------------------------------
-double Mis_GetTimeStep_CoreCollapse( const int lv, const double dTime_dt )
-{
-
-   double dt = HUGE_NUMBER;
-
-   const double CentralDens = CCSN_PeakDens / UNIT_D;
-
-   if ( CentralDens > CCSN_Dt_CC_Thres_Dens / UNIT_D ) dt = CCSN_Dt_CC_TimeStep / UNIT_T;
-
-   return dt;
-
-} // FUNCTION : Mis_GetTimeStep_CoreCollapse
 
 
 
