@@ -6,7 +6,7 @@
 
 extern double CCSN_PeakDens_CGS;
 extern double CCSN_Dt_CC_Thres_Dens;
-extern double CCSN_Dt_CC_TimeStep;
+extern double CCSN_Dt_CC_TimeStep_Code;
 extern double CCSN_Dt_PB_NuHeat_Fac;
 extern int    CCSN_Dt_PB_NuHeat_YeMode;
 
@@ -39,7 +39,7 @@ double Mis_GetTimeStep_CoreCollapse( const int lv, const double dTime_dt )
    const double CentralDens = CCSN_PeakDens_CGS;
          double dt          = HUGE_NUMBER;
 
-   if ( CentralDens > CCSN_Dt_CC_Thres_Dens )   dt = CCSN_Dt_CC_TimeStep / UNIT_T;
+   if ( CentralDens > CCSN_Dt_CC_Thres_Dens )   dt = CCSN_Dt_CC_TimeStep_Code;
 
    return dt;
 

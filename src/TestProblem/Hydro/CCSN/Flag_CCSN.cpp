@@ -12,13 +12,13 @@ extern int    CCSN_Ref_CC_MaxLv1;
 extern int    CCSN_Ref_CC_MaxLv2;
 extern double CCSN_Ref_CC_Dens1;
 extern double CCSN_Ref_CC_Dens2;
-extern double CCSN_Ref_MaxLv_Rad;
-extern double CCSN_Ref_BaseRad;
-extern double CCSN_Ref_AngRes_Min;
-extern double CCSN_Ref_AngRes_Max;
-extern double CCSN_Ref_Shock_AngResMax;
-extern double CCSN_Ref_Shock_Rsh;
-extern double CCSN_Ref_Shock_Rad;
+extern double CCSN_Ref_MaxLv_Rad_Code;
+extern double CCSN_Ref_BaseRad_Code;
+extern double CCSN_Ref_AngRes_Min_Code;
+extern double CCSN_Ref_AngRes_Max_Code;
+extern double CCSN_Ref_Shock_AngResMax_Code;
+extern double CCSN_Ref_Shock_Rsh_Code;
+extern double CCSN_Ref_Shock_Rad_Code;
 
 
 
@@ -73,7 +73,7 @@ bool Flag_CoreCollapse( const int i, const int j, const int k, const int lv, con
    if ( !Is_MaxLv )
    {
 //    (2) check if the minimum angular resolution is reached
-      if ( CCSN_Ref_AngRes_Min > 0.0  &&  R * CCSN_Ref_AngRes_Min < dh )
+      if ( CCSN_Ref_AngRes_Min_Code > 0.0  &&  R * CCSN_Ref_AngRes_Min_Code < dh )
          Flag = true;
 
 //    (3) always refine the innermost cells
@@ -81,7 +81,7 @@ bool Flag_CoreCollapse( const int i, const int j, const int k, const int lv, con
          Flag = true;
 
 //    (4) always refine to the allowed maximum level for cells with r <= CCSN_Ref_MaxLv_Rad
-      if ( R <= CCSN_Ref_MaxLv_Rad )
+      if ( R <= CCSN_Ref_MaxLv_Rad_Code )
          Flag = true;
    }
 
@@ -133,11 +133,11 @@ bool Flag_PostBounce( const int i, const int j, const int k, const int lv, const
       Flag = true;
 
 // (2) always refine to the maximum level for cells with r <= CCSN_Ref_MaxLv_Rad
-   if ( R <= CCSN_Ref_MaxLv_Rad )
+   if ( R <= CCSN_Ref_MaxLv_Rad_Code )
       Flag = true;
 
 // (3) check if the minimum angular resolution is reached
-   if ( CCSN_Ref_AngRes_Min > 0.0  &&  R * CCSN_Ref_AngRes_Min < dh )
+   if ( CCSN_Ref_AngRes_Min_Code > 0.0  &&  R * CCSN_Ref_AngRes_Min_Code < dh )
       Flag = true;
 
 
@@ -181,30 +181,29 @@ bool Flag_Region_CCSN( const int i, const int j, const int k, const int lv, cons
 
 
 // (1) always allow refinement to the maximum level for cells with r <= CCSN_Ref_MaxLv_Rad
-   if ( R <= CCSN_Ref_MaxLv_Rad )
+   if ( R <= CCSN_Ref_MaxLv_Rad_Code )
       return true;
 
 // (2) check the maximum allowed refinement level based on angular resolution
-   if ( CCSN_Ref_AngRes_Max > 0.0  &&  2.0 * R * CCSN_Ref_AngRes_Max > dh )
+   if ( CCSN_Ref_AngRes_Max_Code > 0.0  &&  2.0 * R * CCSN_Ref_AngRes_Max_Code > dh )
       Within = false;
 
    if ( !Within )   return Within;
 
 // (3) check the maximum allowed refinement level based on the shock-radius-dependent angular resolution
-   if ( CCSN_Ref_Shock_AngResMax           >  0.0                 &&
-        CCSN_Rsh_Ave                       >= CCSN_Ref_Shock_Rsh  &&
-        R                                  >= CCSN_Ref_Shock_Rad  &&
-        2.0 * R * CCSN_Ref_Shock_AngResMax > dh                      )
+   if ( CCSN_Ref_Shock_AngResMax_Code           >  0.0           &&
+        CCSN_Ref_Shock_Rsh_Code                 <= CCSN_Rsh_Ave  &&
+        CCSN_Ref_Shock_Rad_Code                 <= R             &&
+        2.0 * R * CCSN_Ref_Shock_AngResMax_Code >  dh               )
       Within = false;
 
    if ( !Within )   return Within;
 
 // (4) check allowed maximum refinement level based on distance to the center
-   if ( CCSN_Ref_BaseRad > 0.0 )
+   if ( CCSN_Ref_BaseRad_Code > 0.0 )
    {
-      const double R_base = CCSN_Ref_BaseRad;
-            int    ratio  = (int) ( R / R_base );
-            int    dlv    = 0;
+      int dlv   = 0;
+      int ratio = (int) ( R / CCSN_Ref_BaseRad_Code );
 
       while ( ratio )   { dlv += 1; ratio >>= 1; }
 

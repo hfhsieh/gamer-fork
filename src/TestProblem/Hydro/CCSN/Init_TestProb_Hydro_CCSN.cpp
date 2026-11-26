@@ -85,6 +85,16 @@ static double     CCSN_Output_GW_Dt;               // output GW signals every CC
        double     CCSN_Shock_ThresFac_Pres;        // pressure threshold factor for detecting postbounce shock
        double     CCSN_Shock_ThresFac_Vel;         // velocity threshold factor for detecting postbounce shock
        int        CCSN_Shock_Weight;               // weighting of each cell when calculating the average shock radius (1:volume, 2:1/volume)
+
+
+       double     CCSN_Dt_CC_TimeStep_Code;
+       double     CCSN_Ref_MaxLv_Rad_Code;
+       double     CCSN_Ref_BaseRad_Code;
+       double     CCSN_Ref_Shock_Rsh_Code;
+       double     CCSN_Ref_Shock_Rad_Code;
+       double     CCSN_Ref_AngRes_Max_Code;
+       double     CCSN_Ref_AngRes_Min_Code;
+       double     CCSN_Ref_Shock_AngResMax_Code;
 // =======================================================================================
 
 
@@ -499,27 +509,28 @@ void SetParameter()
       } // if ( ! CCSN_Is_PostBounce ) ... else ...
    } // if ( CCSN_Prob == CCSN )
 
-// (1-3-5) check and convert angular resolution parameters to radian
-   const double Deg2Rad = M_PI / 180.0;
-
-   if ( CCSN_Ref_AngRes_Max > 0.0 )   CCSN_Ref_AngRes_Max *= Deg2Rad;
-   if ( CCSN_Ref_AngRes_Min > 0.0 )   CCSN_Ref_AngRes_Min *= Deg2Rad;
-
+// (1-3-5) check angular resolution parameters
    if ( CCSN_Ref_AngRes_Min > 0.0  &&
         CCSN_Ref_AngRes_Max > 0.0  &&
         CCSN_Ref_AngRes_Min < 2.0 * CCSN_Ref_AngRes_Max )
       Aux_Error( ERROR_INFO, "CCSN_Ref_AngRes_Min (%14.7e) must be larger than 2.0 * CCSN_Ref_AngRes_Max (%14.7e) !!\n",
                  CCSN_Ref_AngRes_Min, CCSN_Ref_AngRes_Max );
 
-   if ( CCSN_Ref_Shock_AngResMax > 0.0 )  CCSN_Ref_Shock_AngResMax *= Deg2Rad;
-
 
 // (2) set the problem-specific derived parameters
 // convert runtime parameters to the code unit
-   CCSN_Ref_MaxLv_Rad /= UNIT_L;
-   CCSN_Ref_BaseRad   /= UNIT_L;
-   CCSN_Ref_Shock_Rsh /= UNIT_L;
-   CCSN_Ref_Shock_Rad /= UNIT_L;
+   const double Deg2Rad = M_PI / 180.0;
+
+   CCSN_Dt_CC_TimeStep_Code = CCSN_Dt_CC_TimeStep / UNIT_T;
+
+   CCSN_Ref_MaxLv_Rad_Code  = CCSN_Ref_MaxLv_Rad / UNIT_L;
+   CCSN_Ref_BaseRad_Code    = CCSN_Ref_BaseRad   / UNIT_L;
+   CCSN_Ref_Shock_Rsh_Code  = CCSN_Ref_Shock_Rsh / UNIT_L;
+   CCSN_Ref_Shock_Rad_Code  = CCSN_Ref_Shock_Rad / UNIT_L;
+
+   CCSN_Ref_AngRes_Max_Code      = CCSN_Ref_AngRes_Max      * Deg2Rad;
+   CCSN_Ref_AngRes_Min_Code      = CCSN_Ref_AngRes_Min      * Deg2Rad;
+   CCSN_Ref_Shock_AngResMax_Code = CCSN_Ref_Shock_AngResMax * Deg2Rad;
 
 
 // (3) reset other general-purpose parameters
@@ -580,13 +591,13 @@ void SetParameter()
       Aux_Message( stdout, "  density threshold for refinement level limit 2, in g/cm3           = %14.7e\n", CCSN_Ref_CC_Dens2        ); }
       }
 
-      Aux_Message( stdout, "  radius within which maximum refinement is enforced, in cm          = %14.7e\n", CCSN_Ref_MaxLv_Rad*UNIT_L        );
-      Aux_Message( stdout, "  characteristic radius for maximum refinement level, in cm          = %14.7e\n", CCSN_Ref_BaseRad*UNIT_L          );
-      Aux_Message( stdout, "  minimum angular resolution, in degrees                             = %14.7e\n", CCSN_Ref_AngRes_Min/Deg2Rad      );
-      Aux_Message( stdout, "  maximum angular resolution, in degrees                             = %14.7e\n", CCSN_Ref_AngRes_Max/Deg2Rad      );
-      Aux_Message( stdout, "  maximum angular resolution for Rsh-based criterion, in degrees     = %14.7e\n", CCSN_Ref_Shock_AngResMax/Deg2Rad );
-      Aux_Message( stdout, "  average shock radius threshold for Rsh-based criterion, in cm      = %14.7e\n", CCSN_Ref_Shock_Rsh*UNIT_L        );
-      Aux_Message( stdout, "  minimum radius for applying the Rsh-based criterion, in cm         = %14.7e\n", CCSN_Ref_Shock_Rad*UNIT_L        );
+      Aux_Message( stdout, "  radius within which maximum refinement is enforced, in cm          = %14.7e\n", CCSN_Ref_MaxLv_Rad       );
+      Aux_Message( stdout, "  characteristic radius for maximum refinement level, in cm          = %14.7e\n", CCSN_Ref_BaseRad         );
+      Aux_Message( stdout, "  minimum angular resolution, in degrees                             = %14.7e\n", CCSN_Ref_AngRes_Min      );
+      Aux_Message( stdout, "  maximum angular resolution, in degrees                             = %14.7e\n", CCSN_Ref_AngRes_Max      );
+      Aux_Message( stdout, "  maximum angular resolution for Rsh-based criterion, in degrees     = %14.7e\n", CCSN_Ref_Shock_AngResMax );
+      Aux_Message( stdout, "  average shock radius threshold for Rsh-based criterion, in cm      = %14.7e\n", CCSN_Ref_Shock_Rsh       );
+      Aux_Message( stdout, "  minimum radius for applying the Rsh-based criterion, in cm         = %14.7e\n", CCSN_Ref_Shock_Rad       );
 
 //    time-step
       if ( CCSN_Prob == CCSN )
