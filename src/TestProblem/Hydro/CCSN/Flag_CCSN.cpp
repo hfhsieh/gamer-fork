@@ -4,7 +4,6 @@
 
 
 extern double CCSN_PeakDens_CGS;
-extern double CCSN_Rsh_Max;
 extern double CCSN_Rsh_Ave;
 
 extern bool   CCSN_Ref_CC_Flag1;
@@ -17,6 +16,9 @@ extern double CCSN_Ref_MaxLv_Rad;
 extern double CCSN_Ref_BaseRad;
 extern double CCSN_Ref_AngRes_Min;
 extern double CCSN_Ref_AngRes_Max;
+extern double CCSN_Ref_Shock_AngResMax;
+extern double CCSN_Ref_Shock_Rsh;
+extern double CCSN_Ref_Shock_Rad;
 
 
 
@@ -79,7 +81,7 @@ bool Flag_CoreCollapse( const int i, const int j, const int k, const int lv, con
          Flag = true;
 
 //    (4) always refine to the allowed maximum level for cells with r <= CCSN_Ref_MaxLv_Rad
-      if ( R * UNIT_L <= CCSN_Ref_MaxLv_Rad )
+      if ( R <= CCSN_Ref_MaxLv_Rad )
          Flag = true;
    }
 
@@ -131,7 +133,7 @@ bool Flag_PostBounce( const int i, const int j, const int k, const int lv, const
       Flag = true;
 
 // (2) always refine to the maximum level for cells with r <= CCSN_Ref_MaxLv_Rad
-   if ( R * UNIT_L <= CCSN_Ref_MaxLv_Rad )
+   if ( R <= CCSN_Ref_MaxLv_Rad )
       Flag = true;
 
 // (3) check if the minimum angular resolution is reached
@@ -179,7 +181,7 @@ bool Flag_Region_CCSN( const int i, const int j, const int k, const int lv, cons
 
 
 // (1) always allow refinement to the maximum level for cells with r <= CCSN_Ref_MaxLv_Rad
-   if ( R * UNIT_L <= CCSN_Ref_MaxLv_Rad )
+   if ( R <= CCSN_Ref_MaxLv_Rad )
       return true;
 
 // (2) check the maximum allowed refinement level based on angular resolution
@@ -188,7 +190,16 @@ bool Flag_Region_CCSN( const int i, const int j, const int k, const int lv, cons
 
    if ( !Within )   return Within;
 
-// (3) check allowed maximum refinement level based on distance to the center
+// (3) check the maximum allowed refinement level based on the shock-radius-dependent angular resolution
+   if ( CCSN_Ref_Shock_AngResMax           >  0.0                 &&
+        CCSN_Rsh_Ave                       >= CCSN_Ref_Shock_Rsh  &&
+        R                                  >= CCSN_Ref_Shock_Rad  &&
+        2.0 * R * CCSN_Ref_Shock_AngResMax > dh                      )
+      Within = false;
+
+   if ( !Within )   return Within;
+
+// (4) check allowed maximum refinement level based on distance to the center
    if ( CCSN_Ref_BaseRad > 0.0 )
    {
       const double R_base = CCSN_Ref_BaseRad;
