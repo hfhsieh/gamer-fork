@@ -40,7 +40,7 @@ Note:
       s20GREP_LS220_15ms_idsa     : LS220 EoS, with IDSA
 
    (3) Core collapse
-   --> s20_W2007                  : 20-solarmass progenitor model from Woosely & Heger (2007)
+   --> s20_WH2007                 : 20-solar-mass progenitor model from Woosely & Heger (2007)
 
 3. Reference solutions are provided in the "ReferenceSolution" directory.
 

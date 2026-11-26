@@ -2,7 +2,7 @@
 CCSN_Prob                     1                  # target CCSN problem
                                                  #    0 : Migration Test (GREP)
                                                  #    1 : CCSN
-CCSN_Prof_File                IC/s20_W2007       # filename of input profile
+CCSN_Prof_File                IC/s20_WH2007      # filename of input profile
 CCSN_Opt_InitEint             1                  # Mode of obtaining internal energy in SetGridIC() [1]
                                                  # ( 1=Temp Mode: Eint(dens, temp, [Ye])
                                                  #   2=Pres Mode: Eint(dens, pres, [Ye]) )
