@@ -20,7 +20,7 @@ fn_flash = "../ReferenceSolution/MigrationTest/flash_1d.dat"
 t_flash, rhoc_flash = np.genfromtxt(fn_flash, unpack = True)
 
 # GAMER
-fn_gamer = "../Record__CentralQuant"
+fn_gamer = "../Record__CCSN_Properties"
 t_gamer, rhoc_gamer = np.genfromtxt(fn_gamer, usecols = [0, 5], unpack = True)
 
 

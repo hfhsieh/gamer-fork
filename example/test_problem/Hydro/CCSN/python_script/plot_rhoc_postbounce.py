@@ -47,7 +47,7 @@ t_flash, rhoc_flash = np.genfromtxt(fn_flash, usecols = [0, 16], unpack = True)
 t_flash -= tb_flash
 
 ## GAMER
-fn_gamer = "../Record__CentralQuant"
+fn_gamer = "../Record__CCSN_Properties"
 t_gamer, rhoc_gamer = np.genfromtxt(fn_gamer, usecols = [0, 5], unpack = True)
 t_gamer += 0.015  # the IC is from the FLASH simulation at t_pb = 15 ms
 

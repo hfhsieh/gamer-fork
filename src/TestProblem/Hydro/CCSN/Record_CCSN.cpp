@@ -68,14 +68,14 @@ void Record_CCSN_Properties()
 #  endif
 
 
-// write to the file "Record__CentralQuant" by the MPI process which has the target patch
+// write to the file "Record__CCSN_Properties" by the MPI process which has the target patch
    if ( MPI_Rank == Extrema.Rank )
    {
 
       static bool FirstTime = true;
 
       char     FileName[2*MAX_STRING];
-      sprintf( FileName, "%s/Record__CentralQuant", OUTPUT_DIR );
+      sprintf( FileName, "%s/Record__CCSN_Properties", OUTPUT_DIR );
 
 //    file header
       if ( FirstTime )

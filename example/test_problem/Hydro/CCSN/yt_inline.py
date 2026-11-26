@@ -57,8 +57,8 @@ def yt_inline():
     ds.add_field(("gas", "ye"), function = _ye,
                  units = "dimensionless", sampling_type = "cell")
 
-    # read the PNS center from the last row of Record__CentralQuant
-    pns_coord = np.genfromtxt("Record__CentralQuant", usecols = [11, 12, 13])  # in cm
+    # read the PNS center from the last row of Record__CCSN_Properties
+    pns_coord = np.genfromtxt("Record__CCSN_Properties", usecols = [11, 12, 13])  # in cm
 
     if len(pns_coord.shape) != 1:
         pns_coord = pns_coord[-1]

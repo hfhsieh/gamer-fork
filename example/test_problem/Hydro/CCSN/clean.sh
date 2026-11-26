@@ -4,4 +4,4 @@ rm -f Record__Note Record__Timing Record__TimeStep Record__PatchCount Record__Du
       PowerSpec_* Particle_* nohup.out Record__Performance Record__TimingMPI_* \
       Record__ParticleCount Record__User Patch_* Record__NCorrUnphy FailedPatchGroup* *.pyc Record__LoadBalance \
       GRACKLE_INFO Record__DivB Record__Center \
-      Record__CentralQuant Record__QuadMom_2nd Leakage_Lum_* GREP_Lv*
+      Record__CCSN_Properties Record__QuadMom_2nd Leakage_Lum_* GREP_Lv*

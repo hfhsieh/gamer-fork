@@ -23,7 +23,7 @@ RefSol = "../ReferenceSolution/CoreCollapse/flash_3D_s20_SFHo_nonup.dat"
 t_flash, rhoc_flash = np.genfromtxt(RefSol, usecols = [0, 16], unpack = True)
 
 ## GAMER
-fn_gamer = "../Record__CentralQuant"
+fn_gamer = "../Record__CCSN_Properties"
 t_gamer, rhoc_gamer = np.genfromtxt(fn_gamer, usecols = [0, 5], unpack = True)
 
 

@@ -75,6 +75,6 @@ Note:
 6. The refinement threshold values specified in Input__Flag_Rho and Input__Flag_User must be given in code units
 
 7. Additional Record files:
-   --> Record__CentralQuant : Record central quantities, including peak density and its associated Ye and location,
-                              the CCSN center location, and additional neutrino leakage information
-   --> Record__QuadMom_2nd  : Record the second-order time derivatives of the mass quadrupole moments
+   --> Record__CCSN_Properties : Record central quantities, including peak density and its associated Ye and location,
+                                 the CCSN center location, and additional neutrino leakage information
+   --> Record__QuadMom_2nd     : Record the second-order time derivatives of the mass quadrupole moments
