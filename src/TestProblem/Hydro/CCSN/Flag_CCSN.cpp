@@ -13,6 +13,7 @@ extern int    CCSN_Ref_CC_MaxLv2;
 extern double CCSN_Ref_CC_Dens1;
 extern double CCSN_Ref_CC_Dens2;
 extern double CCSN_Ref_MaxLv_Rad_Code;
+extern int    CCSN_Ref_MaxLv_Rad_OutLv;
 extern double CCSN_Ref_BaseRad_Code;
 extern double CCSN_Ref_AngRes_Min_Code;
 extern double CCSN_Ref_AngRes_Max_Code;
@@ -180,9 +181,18 @@ bool Flag_Region_CCSN( const int i, const int j, const int k, const int lv, cons
    const double R      = sqrt( SQR(dR[0]) + SQR(dR[1]) + SQR(dR[2]) );
 
 
-// (1) always allow refinement to the maximum level for cells with r <= CCSN_Ref_MaxLv_Rad
+// (1-1) always allow refinement to the maximum level for cells with r <= CCSN_Ref_MaxLv_Rad
    if ( R <= CCSN_Ref_MaxLv_Rad_Code )
+   {
       return true;
+   }
+
+   else
+   {
+//   (1-2) limit the maximum refinement level for cells outside CCSN_Ref_MaxLv_Rad
+     if ( CCSN_Ref_MaxLv_Rad_OutLv >= 0  &&  lv >= CCSN_Ref_MaxLv_Rad_OutLv )
+         return false;
+   }
 
 // (2) check the maximum allowed refinement level based on angular resolution
    if ( CCSN_Ref_AngRes_Max_Code > 0.0  &&  2.0 * R * CCSN_Ref_AngRes_Max_Code > dh )

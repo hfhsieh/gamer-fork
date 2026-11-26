@@ -45,6 +45,8 @@ CCSN_Ref_CC_MaxLv2           -1                  # maximum refinement level when
 CCSN_Ref_CC_Dens1             1.0e11             # central density threshold for refinement level limit 1, in g/cm3 [1.0e11]
 CCSN_Ref_CC_Dens2             1.0e12             # central density threshold for refinement level limit 2, in g/cm3 [1.0e12]
 CCSN_Ref_MaxLv_Rad            3.0e6              # radius within which maximum refinement is enforced, in cm [3.0e6]
+CCSN_Ref_MaxLv_Rad_OutLv     -1                  # maximum refinement level outside the radius specified by CCSN_Ref_MaxLv_Rad
+                                                 # (<0=off) [-1]
 CCSN_Ref_BaseRad             -1.0                # characteristic radius for limiting maximum refinement level, in cm
                                                  # (<=0=off) [-1.0]
 CCSN_Ref_AngRes_Min          -1.0                # minimum angular resolution, in degrees (<=0=off) [-1.0]

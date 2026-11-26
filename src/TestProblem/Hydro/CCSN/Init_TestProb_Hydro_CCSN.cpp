@@ -66,6 +66,7 @@ static double     CCSN_Rot_Fac;                    // multiplication factor for 
        double     CCSN_Ref_CC_Dens1;               // central density threshold for refinement level limit 1, in g/cm3
        double     CCSN_Ref_CC_Dens2;               // central density threshold for refinement level limit 2, in g/cm3
        double     CCSN_Ref_MaxLv_Rad;              // radius within which maximum refinement is enforced, in cm
+       int        CCSN_Ref_MaxLv_Rad_OutLv;        // maximum refinement level allowed outside the specified radius CCSN_Ref_MaxLv_Rad
        double     CCSN_Ref_BaseRad;                // characteristic radius for limiting maximum refinement level, in cm
        double     CCSN_Ref_AngRes_Min;             // minimum angular resolution, in degrees
        double     CCSN_Ref_AngRes_Max;             // maximum angular resolution, in degrees
@@ -207,6 +208,7 @@ void LoadInputTestProb( const LoadParaMode_t load_mode, ReadPara_t *ReadPara, HD
    LOAD_PARA( load_mode, "CCSN_Ref_CC_Dens1",        &CCSN_Ref_CC_Dens1,         1.0e11,       0.0,              NoMax_double      );
    LOAD_PARA( load_mode, "CCSN_Ref_CC_Dens2",        &CCSN_Ref_CC_Dens2,         1.0e12,       0.0,              NoMax_double      );
    LOAD_PARA( load_mode, "CCSN_Ref_MaxLv_Rad",       &CCSN_Ref_MaxLv_Rad,        3.0e6,        Eps_double,       NoMax_double      );
+   LOAD_PARA( load_mode, "CCSN_Ref_MaxLv_Rad_OutLv", &CCSN_Ref_MaxLv_Rad_OutLv, -1,            NoMin_int,        MAX_LEVEL         );
    LOAD_PARA( load_mode, "CCSN_Ref_BaseRad",         &CCSN_Ref_BaseRad,         -1.0,          NoMin_double,     NoMax_double      );
    LOAD_PARA( load_mode, "CCSN_Ref_AngRes_Min",      &CCSN_Ref_AngRes_Min,      -1.0,          NoMin_double,     NoMax_double      );
    LOAD_PARA( load_mode, "CCSN_Ref_AngRes_Max",      &CCSN_Ref_AngRes_Max,      -1.0,          NoMin_double,     NoMax_double      );
@@ -592,6 +594,7 @@ void SetParameter()
       }
 
       Aux_Message( stdout, "  radius within which maximum refinement is enforced, in cm          = %14.7e\n", CCSN_Ref_MaxLv_Rad       );
+      Aux_Message( stdout, "  maximum refinement level outside CCSN_Ref_MaxLv_Rad                = %d\n",     CCSN_Ref_MaxLv_Rad_OutLv );
       Aux_Message( stdout, "  characteristic radius for maximum refinement level, in cm          = %14.7e\n", CCSN_Ref_BaseRad         );
       Aux_Message( stdout, "  minimum angular resolution, in degrees                             = %14.7e\n", CCSN_Ref_AngRes_Min      );
       Aux_Message( stdout, "  maximum angular resolution, in degrees                             = %14.7e\n", CCSN_Ref_AngRes_Max      );
